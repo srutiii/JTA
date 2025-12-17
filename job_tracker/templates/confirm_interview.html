@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Confirm Interview • Job Tracker{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+    <div>
+      <h1 class="h3 mb-1">Confirm Interview Details</h1>
+      <p class="text-muted mb-0">{{ job.company }} • {{ job.role }}</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">Back</a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('confirm_interview', job_id=job.id) }}" class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Interview Date *</label>
+          <input class="form-control" type="date" name="interview_date" value="{{ job.interview_date or '' }}" required />
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Interview Time *</label>
+          <input class="form-control" type="time" name="interview_time" value="{{ job.interview_time or '' }}" required />
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Venue / Online *</label>
+          <input class="form-control" name="interview_venue" value="{{ job.interview_venue or 'Online' }}" required />
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Save Interview</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('interviews') }}">Go to Interviews</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+

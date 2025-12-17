@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Interview Feedback • Job Tracker{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+    <div>
+      <h1 class="h3 mb-1">Interview Feedback</h1>
+      <p class="text-muted mb-0">{{ job.company }} • {{ job.role }}</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('interviews') }}">Back</a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="mb-3">
+        <div class="small text-muted">Interview</div>
+        <div class="fw-semibold">
+          {{ job.interview_date or "-" }}
+          {% if job.interview_time %} • {{ job.interview_time }}{% endif %}
+          {% if job.interview_venue %} • {{ job.interview_venue }}{% endif %}
+        </div>
+      </div>
+
+      <form method="POST" action="{{ url_for('complete_interview', job_id=job.id) }}" class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Difficulty</label>
+          <select class="form-select" name="interview_difficulty">
+            <option value="">Select…</option>
+            {% for d in difficulties %}
+              <option value="{{ d }}" {% if job.interview_difficulty == d %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Experience Notes</label>
+          <textarea class="form-control" name="interview_experience_notes" rows="5" placeholder="What went well? What to improve?">{{ job.interview_experience_notes or "" }}</textarea>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-success" type="submit">Mark Completed & Save</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('interviews') }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+

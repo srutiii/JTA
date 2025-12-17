@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs • Job Tracker{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+    <div>
+      <h1 class="h3 mb-1">Jobs</h1>
+      <p class="text-muted mb-0">Track applications and keep an eye on follow-ups.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('add_job_form') }}">Add Job</a>
+  </div>
+
+  {% if error_message %}
+    <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+  {% endif %}
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Role</th>
+              <th>Location</th>
+              <th>Status</th>
+              <th>Applied Date</th>
+              <th>Notes</th>
+              <th>Job Link</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if jobs and jobs|length > 0 %}
+              {% for job in jobs %}
+                <tr class="{% if job.follow_up_reminder %}table-warning{% endif %}">
+                  <td class="fw-semibold">{{ job.company }}</td>
+                  <td>{{ job.role }}</td>
+                  <td>{{ job.location }}</td>
+                  <td>
+                    <span class="badge text-bg-{{ status_badge.get(job.status, 'secondary') }}">
+                      {{ job.status }}
+                    </span>
+                    {% if job.follow_up_reminder %}
+                      <div class="small text-dark mt-1">
+                        Check application status / send follow-up
+                      </div>
+                    {% endif %}
+                    {% if job.needs_interview_details %}
+                      <div class="small mt-1">
+                        <a href="{{ url_for('confirm_interview', job_id=job.id) }}">Confirm interview details</a>
+                      </div>
+                    {% endif %}
+                  </td>
+                  <td>{{ job.applied_date or '-' }}</td>
+                  <td class="notes-cell">
+                    {% if job.notes %}
+                      {{ job.notes }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <a href="{{ job.job_link }}" target="_blank" rel="noopener noreferrer">Open</a>
+                  </td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('edit_job_form', job_id=job.id) }}">
+                      Edit
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                  No job applications yet. Click <strong>Add Job</strong> to create your first entry.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="text-muted small mt-3 mb-0">
+    Tip: Update MySQL credentials in <code>app.py</code> before running.
+  </p>
+{% endblock %}
+
+
