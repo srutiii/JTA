@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile • Job Application Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+  <div>
+    <h1 class="h3 mb-1">Edit Profile</h1>
+    <p class="text-muted mb-0">Fill in your information for easy copy-paste into job applications.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('about_me') }}">Back</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="mb-3">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} mb-2" role="alert">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('edit_profile') }}" class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label">Name</label>
+        <input
+          type="text"
+          class="form-control"
+          name="name"
+          placeholder="Your full name"
+          value="{{ profile.name if profile else '' }}"
+        />
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label">Age</label>
+        <input
+          type="number"
+          class="form-control"
+          name="age"
+          placeholder="e.g. 25"
+          min="1"
+          max="120"
+          value="{{ profile.age if profile and profile.age else '' }}"
+        />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Looking For</label>
+        <input
+          type="text"
+          class="form-control"
+          name="looking_for"
+          placeholder="e.g. Software Developer, Data Analyst, Remote positions"
+          value="{{ profile.looking_for if profile else '' }}"
+        />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Bio</label>
+        <textarea
+          class="form-control"
+          name="bio"
+          rows="4"
+          placeholder="A brief introduction about yourself..."
+        >{{ profile.bio if profile else '' }}</textarea>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Qualification</label>
+        <textarea
+          class="form-control"
+          name="qualification"
+          rows="4"
+          placeholder="Your educational background, degrees, certifications..."
+        >{{ profile.qualification if profile else '' }}</textarea>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Experience</label>
+        <textarea
+          class="form-control"
+          name="experience"
+          rows="5"
+          placeholder="Your work experience, internships, relevant roles..."
+        >{{ profile.experience if profile else '' }}</textarea>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Projects</label>
+        <textarea
+          class="form-control"
+          name="projects"
+          rows="5"
+          placeholder="Notable projects you've worked on, GitHub links, descriptions..."
+        >{{ profile.projects if profile else '' }}</textarea>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Skills</label>
+        <textarea
+          class="form-control"
+          name="skills"
+          rows="4"
+          placeholder="Technical skills, programming languages, tools, frameworks..."
+        >{{ profile.skills if profile else '' }}</textarea>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Achievements</label>
+        <textarea
+          class="form-control"
+          name="achievements"
+          rows="4"
+          placeholder="Awards, recognitions, certifications, notable accomplishments..."
+        >{{ profile.achievements if profile else '' }}</textarea>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Portfolio Links</label>
+        <textarea
+          class="form-control"
+          name="portfolio_links"
+          rows="3"
+          placeholder="GitHub, LinkedIn, personal website, portfolio URLs (one per line)"
+        >{{ profile.portfolio_links if profile else '' }}</textarea>
+      </div>
+
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-primary" type="submit">Save Profile</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('about_me') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="text-muted small mt-3 mb-0">
+  All fields are optional. Fill in what's relevant for your job applications.
+</p>
+{% endblock %}
+

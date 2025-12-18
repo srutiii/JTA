@@ -15,6 +15,81 @@
     <div class="alert alert-danger" role="alert">{{ error_message }}</div>
   {% endif %}
 
+  <!-- Follow-Up Reminders Section -->
+  {% if follow_up_reminders and follow_up_reminders|length > 0 %}
+    <div class="alert alert-warning border-warning shadow-sm mb-4" role="alert">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h5 class="alert-heading mb-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bell-fill me-2" viewBox="0 0 16 16">
+            <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7 0-2.42-1.72-4.44-4.005-4.901z"/>
+          </svg>
+          Follow-Up Reminders
+        </h5>
+        <span class="badge bg-warning text-dark">{{ follow_up_reminders|length }} {{ 'reminder' if follow_up_reminders|length == 1 else 'reminders' }}</span>
+      </div>
+      <p class="mb-3"><strong>Follow up or check application status</strong> for these applications:</p>
+      <div class="list-group">
+        {% for reminder in follow_up_reminders %}
+          <div class="list-group-item list-group-item-warning d-flex justify-content-between align-items-start">
+            <div class="ms-2 me-auto">
+              <div class="fw-bold">{{ reminder.company }} - {{ reminder.role }}</div>
+              <small class="text-muted">
+                Applied {{ reminder.days_ago }} {{ 'day' if reminder.days_ago == 1 else 'days' }} ago
+                {% if reminder.applied_date %}
+                  ({{ reminder.applied_date }})
+                {% endif %}
+              </small>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <a href="{{ reminder.job_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark">
+                View Job
+              </a>
+              <a href="{{ url_for('edit_job_form', job_id=reminder.id) }}" class="btn btn-sm btn-dark">
+                Update Status
+              </a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Search & Filter Form -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <form method="GET" action="{{ url_for('index') }}" class="row g-3">
+        <div class="col-12 col-md-5">
+          <label for="company" class="form-label small text-muted">Filter by Company</label>
+          <input
+            type="text"
+            class="form-control"
+            id="company"
+            name="company"
+            placeholder="Enter company name..."
+            value="{{ filter_company }}"
+          />
+        </div>
+        <div class="col-12 col-md-4">
+          <label for="status" class="form-label small text-muted">Filter by Status</label>
+          <select class="form-select" id="status" name="status">
+            <option value="">All Statuses</option>
+            {% for status in allowed_statuses %}
+              <option value="{{ status }}" {% if filter_status == status %}selected{% endif %}>
+                {{ status }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3 d-flex align-items-end gap-2">
+          <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+          {% if filter_company or filter_status %}
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Clear</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="card shadow-sm">
     <div class="card-body">
       <div class="table-responsive">
@@ -74,7 +149,12 @@
             {% else %}
               <tr>
                 <td colspan="8" class="text-center text-muted py-4">
-                  No job applications yet. Click <strong>Add Job</strong> to create your first entry.
+                  {% if filter_company or filter_status %}
+                    No jobs found matching your filters.
+                    <a href="{{ url_for('index') }}" class="d-block mt-2">Clear filters</a>
+                  {% else %}
+                    No job applications yet. Click <strong>Add Job</strong> to create your first entry.
+                  {% endif %}
                 </td>
               </tr>
             {% endif %}

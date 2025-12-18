@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
-from urllib.parse import urlparse
+from datetime import date, datetime, timedelta
+from functools import wraps
+from urllib.parse import quote, urlparse
 
 import mysql.connector
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.secret_key = "change-me"  # needed for flash messages
@@ -76,6 +78,49 @@ def is_valid_job_link(url: str) -> bool:
         return False
 
 
+def generate_google_calendar_url(
+    title: str,
+    start_datetime: datetime,
+    end_datetime: datetime | None = None,
+    description: str = "",
+    location: str = "",
+) -> str:
+    """
+    Generate a Google Calendar event URL with pre-filled details.
+    No OAuth required - opens Google Calendar in browser with event details.
+    
+    Args:
+        title: Event title (e.g., "Interview at Company")
+        start_datetime: Start date and time (datetime object)
+        end_datetime: End date and time (defaults to start + 1 hour if None)
+        description: Event description
+        location: Event location/venue
+    
+    Returns:
+        Google Calendar URL string
+    """
+    if end_datetime is None:
+        end_datetime = start_datetime + timedelta(hours=1)
+    
+    # Format dates for Google Calendar: YYYYMMDDTHHMMSS (local time, no timezone)
+    start_str = start_datetime.strftime("%Y%m%dT%H%M%S")
+    end_str = end_datetime.strftime("%Y%m%dT%H%M%S")
+    
+    # Build Google Calendar URL
+    params = {
+        "action": "TEMPLATE",
+        "text": title,
+        "dates": f"{start_str}/{end_str}",
+        "details": description,
+        "location": location,
+    }
+    
+    # URL encode parameters
+    query_string = "&".join(f"{k}={quote(str(v))}" for k, v in params.items() if v)
+    
+    return f"https://calendar.google.com/calendar/render?{query_string}"
+
+
 def get_connection():
     # On some Windows setups, mysql-connector's optional native extension can crash.
     # use_pure=True forces the pure-Python implementation (more stable, still beginner-friendly).
@@ -127,6 +172,36 @@ def ensure_schema():
     );
     """
 
+    create_users_table_sql = """
+    CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+
+    create_profiles_table_sql = """
+    CREATE TABLE IF NOT EXISTS profiles (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL UNIQUE,
+        name VARCHAR(255) NULL,
+        age INT NULL,
+        bio TEXT NULL,
+        qualification TEXT NULL,
+        experience TEXT NULL,
+        projects TEXT NULL,
+        skills TEXT NULL,
+        achievements TEXT NULL,
+        portfolio_links TEXT NULL,
+        looking_for VARCHAR(255) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    """
+
     conn = None
     cursor = None
     try:
@@ -134,6 +209,8 @@ def ensure_schema():
         cursor = conn.cursor()
         cursor.execute(create_jobs_table_sql)
         cursor.execute(create_interviews_table_sql)
+        cursor.execute(create_users_table_sql)
+        cursor.execute(create_profiles_table_sql)
 
         # Migrations for existing tables (safe to run multiple times).
         # If a column/index already exists, MySQL will raise an error we ignore.
@@ -267,13 +344,156 @@ def ensure_schema():
             conn.close()
 
 
+# ============================================================================
+# Authentication helpers
+# ============================================================================
+
+
+def login_required(f):
+    """Decorator to protect routes that require authentication."""
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Please log in to access this page.", "info")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+# ============================================================================
+# Authentication routes (public)
+# ============================================================================
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """User registration page."""
+    if request.method == "GET":
+        return render_template("register.html")
+
+    name = (request.form.get("name") or "").strip()
+    email = (request.form.get("email") or "").strip()
+    password = request.form.get("password") or ""
+    confirm_password = request.form.get("confirm_password") or ""
+
+    # Validation
+    if not name or not email or not password:
+        flash("Please fill in all fields.", "danger")
+        return redirect(url_for("register"))
+    if password != confirm_password:
+        flash("Passwords do not match.", "danger")
+        return redirect(url_for("register"))
+    if len(password) < 6:
+        flash("Password must be at least 6 characters long.", "danger")
+        return redirect(url_for("register"))
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Check if email already exists
+        cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+        if cursor.fetchone():
+            flash("Email already registered. Please log in instead.", "danger")
+            return redirect(url_for("login"))
+
+        # Create new user
+        password_hash = generate_password_hash(password)
+        cursor.execute(
+            "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)",
+            (name, email, password_hash),
+        )
+        conn.commit()
+        flash("Registration successful! Please log in.", "success")
+        return redirect(url_for("login"))
+    except mysql.connector.Error as e:
+        if conn is not None:
+            conn.rollback()
+        flash(f"Registration failed: {e}", "danger")
+        return redirect(url_for("register"))
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """User login page."""
+    if request.method == "GET":
+        # If already logged in, redirect to home
+        if "user_id" in session:
+            return redirect(url_for("index"))
+        return render_template("login.html")
+
+    email = (request.form.get("email") or "").strip()
+    password = request.form.get("password") or ""
+
+    if not email or not password:
+        flash("Please enter both email and password.", "danger")
+        return redirect(url_for("login"))
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, name, email, password_hash FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+
+        if user and check_password_hash(user["password_hash"], password):
+            session["user_id"] = user["id"]
+            session["user_name"] = user["name"]
+            session["user_email"] = user["email"]
+            flash(f"Welcome back, {user['name']}!", "success")
+            return redirect(url_for("index"))
+        else:
+            flash("Invalid email or password.", "danger")
+            return redirect(url_for("login"))
+    except mysql.connector.Error as e:
+        flash(f"Login error: {e}", "danger")
+        return redirect(url_for("login"))
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+
+
+@app.route("/logout")
+def logout():
+    """Logout and clear session."""
+    session.clear()
+    flash("You have been logged out.", "info")
+    return redirect(url_for("login"))
+
+
+# ============================================================================
+# Protected job routes
+# ============================================================================
+
+
 @app.route("/", methods=["GET"])
+@login_required
 def index():
     conn = None
     cursor = None
     jobs: list[dict] = []
     error_message = None
     today = date.today()
+
+    # Get filter parameters from GET request
+    filter_company = (request.args.get("company", "") or "").strip()
+    filter_status = (request.args.get("status", "") or "").strip()
+
+    # Validate status filter
+    if filter_status and filter_status not in ALLOWED_STATUSES:
+        filter_status = ""
 
     try:
         conn = get_connection()
@@ -285,20 +505,52 @@ def index():
         elif "venue" in interviews_cols and "interview_venue" not in interviews_cols:
             venue_expr = "i.venue"
 
-        cursor.execute(
-            f"""
+        # Build WHERE clause based on filters
+        where_conditions = []
+        query_params = []
+
+        if filter_company:
+            where_conditions.append("j.company LIKE %s")
+            query_params.append(f"%{filter_company}%")
+
+        if filter_status:
+            where_conditions.append("j.status = %s")
+            query_params.append(filter_status)
+
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+
+        query = f"""
             SELECT
               j.id, j.company, j.role, j.location, j.job_link, j.status, j.applied_date, j.notes,
               i.interview_date, i.interview_time, {venue_expr} AS interview_venue, i.interview_completed,
               i.interview_difficulty, i.interview_experience_notes
             FROM jobs j
             LEFT JOIN interviews i ON i.job_id = j.id
+            {where_clause}
             ORDER BY j.applied_date DESC, j.id DESC
             """
-        )
+
+        cursor.execute(query, query_params)
         jobs = cursor.fetchall() or []
 
-        # Auto status reminder: Applied for 3+ days => show follow-up reminder
+        # Fetch jobs needing follow-up reminders (status="Applied" AND applied_date older than 3 days)
+        # Using SQL date logic: applied_date < CURDATE() - INTERVAL 3 DAY
+        cursor.execute(
+            f"""
+            SELECT
+              j.id, j.company, j.role, j.location, j.job_link, j.status, j.applied_date, j.notes,
+              DATEDIFF(CURDATE(), j.applied_date) AS days_ago
+            FROM jobs j
+            WHERE j.status = 'Applied'
+              AND j.applied_date < DATE_SUB(CURDATE(), INTERVAL 3 DAY)
+            ORDER BY j.applied_date ASC
+            """
+        )
+        follow_up_reminders = cursor.fetchall() or []
+
+        # Auto status reminder: Applied for 3+ days => show follow-up reminder (for individual job rows)
         for job in jobs:
             job["follow_up_reminder"] = False
             if job.get("status") == "Applied" and job.get("applied_date"):
@@ -330,16 +582,22 @@ def index():
         error_message=error_message,
         status_badge=status_badge,
         today=today,
+        filter_company=filter_company,
+        filter_status=filter_status,
+        allowed_statuses=ALLOWED_STATUSES,
+        follow_up_reminders=follow_up_reminders,
     )
 
 
 @app.route("/add", methods=["GET"])
+@login_required
 def add_job_form():
     # Provide a reasonable default date for the form
     return render_template("add_job.html", statuses=ALLOWED_STATUSES, today=date.today().isoformat())
 
 
 @app.route("/add", methods=["POST"])
+@login_required
 def add_job_submit():
     company = (request.form.get("company") or "").strip()
     role = (request.form.get("role") or "").strip()
@@ -421,6 +679,7 @@ def fetch_job(job_id: int) -> dict | None:
 
 
 @app.route("/jobs/<int:job_id>/edit", methods=["GET"])
+@login_required
 def edit_job_form(job_id: int):
     job = fetch_job(job_id)
     if not job:
@@ -435,6 +694,7 @@ def edit_job_form(job_id: int):
 
 
 @app.route("/jobs/<int:job_id>/edit", methods=["POST"])
+@login_required
 def edit_job_submit(job_id: int):
     company = (request.form.get("company") or "").strip()
     role = (request.form.get("role") or "").strip()
@@ -489,6 +749,7 @@ def edit_job_submit(job_id: int):
 
 
 @app.route("/jobs/<int:job_id>/interview/confirm", methods=["GET", "POST"])
+@login_required
 def confirm_interview(job_id: int):
     job = fetch_job(job_id)
     if not job:
@@ -496,7 +757,41 @@ def confirm_interview(job_id: int):
         return redirect(url_for("index"))
 
     if request.method == "GET":
-        return render_template("confirm_interview.html", job=job)
+        # Generate Google Calendar URL if interview details exist
+        calendar_url = None
+        if job.get("interview_date") and job.get("interview_time"):
+            try:
+                # Parse date and time
+                interview_date_obj = job["interview_date"]
+                if isinstance(interview_date_obj, str):
+                    interview_date_obj = datetime.strptime(interview_date_obj, "%Y-%m-%d").date()
+                elif isinstance(interview_date_obj, date):
+                    pass
+                else:
+                    interview_date_obj = None
+
+                interview_time_str = job.get("interview_time")
+                if interview_time_str:
+                    if isinstance(interview_time_str, str):
+                        time_parts = interview_time_str.split(":")
+                        if len(time_parts) >= 2:
+                            start_datetime = datetime.combine(
+                                interview_date_obj,
+                                datetime.strptime(interview_time_str, "%H:%M:%S").time() if ":" in interview_time_str and len(interview_time_str.split(":")) == 3 else datetime.strptime(interview_time_str, "%H:%M").time(),
+                            )
+                            title = f"Interview: {job['company']} - {job['role']}"
+                            description = f"Job Application Interview\n\nCompany: {job['company']}\nRole: {job['role']}\nLocation: {job.get('location', 'N/A')}"
+                            location = job.get("interview_venue") or "Online"
+                            calendar_url = generate_google_calendar_url(
+                                title=title,
+                                start_datetime=start_datetime,
+                                description=description,
+                                location=location,
+                            )
+            except Exception:
+                calendar_url = None
+
+        return render_template("confirm_interview.html", job=job, calendar_url=calendar_url)
 
     interview_date = (request.form.get("interview_date") or "").strip()
     interview_time = (request.form.get("interview_time") or "").strip()
@@ -572,7 +867,36 @@ def confirm_interview(job_id: int):
                 (job_id, job_id, job_id, interview_date, interview_time, interview_venue),
             )
         conn.commit()
+        
+        # Generate Google Calendar URL after saving
+        calendar_url = None
+        try:
+            interview_date_obj = datetime.strptime(interview_date, "%Y-%m-%d").date()
+            interview_time_obj = datetime.strptime(interview_time, "%H:%M").time()
+            start_datetime = datetime.combine(interview_date_obj, interview_time_obj)
+            
+            # Fetch company and role for calendar event
+            cursor.execute("SELECT company, role, location FROM jobs WHERE id=%s", (job_id,))
+            job_info = cursor.fetchone()
+            
+            if job_info:
+                title = f"Interview: {job_info[0]} - {job_info[1]}"
+                description = f"Job Application Interview\n\nCompany: {job_info[0]}\nRole: {job_info[1]}\nLocation: {job_info[2] if job_info[2] else 'N/A'}"
+                location = interview_venue
+                calendar_url = generate_google_calendar_url(
+                    title=title,
+                    start_datetime=start_datetime,
+                    description=description,
+                    location=location,
+                )
+        except Exception:
+            calendar_url = None
+        
         flash("Interview details saved.", "success")
+        if calendar_url:
+            # Store calendar URL in session temporarily to show on redirect
+            session["_interview_calendar_url"] = calendar_url
+            session["_interview_calendar_job_id"] = job_id
         return redirect(url_for("interviews"))
     except mysql.connector.Error as e:
         if conn is not None:
@@ -587,6 +911,7 @@ def confirm_interview(job_id: int):
 
 
 @app.route("/jobs/<int:job_id>/interview/complete", methods=["GET", "POST"])
+@login_required
 def complete_interview(job_id: int):
     job = fetch_job(job_id)
     if not job:
@@ -647,6 +972,7 @@ def complete_interview(job_id: int):
 
 
 @app.route("/interviews", methods=["GET"])
+@login_required
 def interviews():
     conn = None
     cursor = None
@@ -702,9 +1028,46 @@ def interviews():
         )
         past = cursor.fetchall() or []
 
+        # Generate Google Calendar URLs for interviews
         for item in upcoming:
             item["is_today"] = bool(item.get("interview_date") == today)
             item["is_soon"] = bool(item.get("interview_date") and today <= item["interview_date"] <= soon_threshold)
+            
+            # Generate calendar URL
+            calendar_url = None
+            if item.get("interview_date") and item.get("interview_time"):
+                try:
+                    interview_date_obj = item["interview_date"]
+                    if isinstance(interview_date_obj, str):
+                        interview_date_obj = datetime.strptime(interview_date_obj, "%Y-%m-%d").date()
+                    elif not isinstance(interview_date_obj, date):
+                        interview_date_obj = None
+                    
+                    interview_time_str = item.get("interview_time")
+                    if interview_date_obj and interview_time_str:
+                        if isinstance(interview_time_str, str):
+                            time_parts = interview_time_str.split(":")
+                            if len(time_parts) >= 2:
+                                try:
+                                    if len(time_parts) == 3:
+                                        time_obj = datetime.strptime(interview_time_str, "%H:%M:%S").time()
+                                    else:
+                                        time_obj = datetime.strptime(interview_time_str, "%H:%M").time()
+                                    start_datetime = datetime.combine(interview_date_obj, time_obj)
+                                    title = f"Interview: {item['company']} - {item['role']}"
+                                    description = f"Job Application Interview\n\nCompany: {item['company']}\nRole: {item['role']}"
+                                    location = item.get("interview_venue") or "Online"
+                                    calendar_url = generate_google_calendar_url(
+                                        title=title,
+                                        start_datetime=start_datetime,
+                                        description=description,
+                                        location=location,
+                                    )
+                                except Exception:
+                                    pass
+                except Exception:
+                    pass
+            item["calendar_url"] = calendar_url
 
         for item in past:
             item["is_missed"] = bool(item.get("interview_completed") == 0 and item.get("interview_date") and item["interview_date"] < today)
@@ -716,13 +1079,149 @@ def interviews():
         if conn is not None:
             conn.close()
 
+    # Check for calendar URL in session (from redirect after saving interview)
+    calendar_url = session.pop("_interview_calendar_url", None)
+    calendar_job_id = session.pop("_interview_calendar_job_id", None)
+    
     return render_template(
         "interviews.html",
         upcoming=upcoming,
         past=past,
         error_message=error_message,
         today=today,
+        soon_threshold=soon_threshold,
+        calendar_url=calendar_url,
+        calendar_job_id=calendar_job_id,
     )
+
+
+# ============================================================================
+# Profile routes
+# ============================================================================
+
+
+@app.route("/about-me", methods=["GET"])
+@login_required
+def about_me():
+    """Display user's profile for easy copy-paste."""
+    conn = None
+    cursor = None
+    profile = None
+    error_message = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT name, age, bio, qualification, experience, projects, skills, achievements, portfolio_links, looking_for
+            FROM profiles
+            WHERE user_id = %s
+            """,
+            (session["user_id"],),
+        )
+        profile = cursor.fetchone()
+    except mysql.connector.Error as e:
+        error_message = f"Database error: {e}"
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+
+    return render_template("about_me.html", profile=profile, error_message=error_message)
+
+
+@app.route("/about-me/edit", methods=["GET", "POST"])
+@login_required
+def edit_profile():
+    """Add or edit user profile."""
+    user_id = session["user_id"]
+
+    if request.method == "GET":
+        # Fetch existing profile if any
+        conn = None
+        cursor = None
+        profile = None
+        try:
+            conn = get_connection()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT name, age, bio, qualification, experience, projects, skills, achievements, portfolio_links, looking_for
+                FROM profiles
+                WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            profile = cursor.fetchone()
+        except mysql.connector.Error as e:
+            flash(f"Error loading profile: {e}", "danger")
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+
+        return render_template("edit_profile.html", profile=profile)
+
+    # POST: Save profile
+    name = (request.form.get("name") or "").strip() or None
+    age_str = (request.form.get("age") or "").strip()
+    age = int(age_str) if age_str.isdigit() else None
+    bio = (request.form.get("bio") or "").strip() or None
+    qualification = (request.form.get("qualification") or "").strip() or None
+    experience = (request.form.get("experience") or "").strip() or None
+    projects = (request.form.get("projects") or "").strip() or None
+    skills = (request.form.get("skills") or "").strip() or None
+    achievements = (request.form.get("achievements") or "").strip() or None
+    portfolio_links = (request.form.get("portfolio_links") or "").strip() or None
+    looking_for = (request.form.get("looking_for") or "").strip() or None
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Check if profile exists
+        cursor.execute("SELECT id FROM profiles WHERE user_id = %s", (user_id,))
+        exists = cursor.fetchone()
+
+        if exists:
+            # Update existing profile
+            cursor.execute(
+                """
+                UPDATE profiles
+                SET name=%s, age=%s, bio=%s, qualification=%s, experience=%s, projects=%s,
+                    skills=%s, achievements=%s, portfolio_links=%s, looking_for=%s
+                WHERE user_id=%s
+                """,
+                (name, age, bio, qualification, experience, projects, skills, achievements, portfolio_links, looking_for, user_id),
+            )
+        else:
+            # Insert new profile
+            cursor.execute(
+                """
+                INSERT INTO profiles (user_id, name, age, bio, qualification, experience, projects, skills, achievements, portfolio_links, looking_for)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (user_id, name, age, bio, qualification, experience, projects, skills, achievements, portfolio_links, looking_for),
+            )
+
+        conn.commit()
+        flash("Profile saved successfully.", "success")
+        return redirect(url_for("about_me"))
+    except mysql.connector.Error as e:
+        if conn is not None:
+            conn.rollback()
+        flash(f"Failed to save profile: {e}", "danger")
+        return redirect(url_for("edit_profile"))
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
 
 
 if __name__ == "__main__":

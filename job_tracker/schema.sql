@@ -45,4 +45,32 @@ CREATE TABLE IF NOT EXISTS interviews (
 -- Optional: enforce allowed values (uncomment if you prefer a strict ENUM)
 -- ALTER TABLE jobs MODIFY status ENUM('Applied','Interview','Rejected','Offer') NOT NULL;
 
+-- Create users table for authentication
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create profiles table for user profile information
+CREATE TABLE IF NOT EXISTS profiles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL UNIQUE,
+  name VARCHAR(255) NULL,
+  age INT NULL,
+  bio TEXT NULL,
+  qualification TEXT NULL,
+  experience TEXT NULL,
+  projects TEXT NULL,
+  skills TEXT NULL,
+  achievements TEXT NULL,
+  portfolio_links TEXT NULL,
+  looking_for VARCHAR(255) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 

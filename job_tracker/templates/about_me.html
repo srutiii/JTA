@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}About Me • Job Application Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+  <div>
+    <h1 class="h3 mb-1">About Me</h1>
+    <p class="text-muted mb-0">Your profile information for easy copy-paste into job applications.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('edit_profile') }}">Edit Profile</a>
+</div>
+
+{% if error_message %}
+  <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+{% endif %}
+
+{% if profile %}
+  <div class="card shadow-sm">
+    <div class="card-body p-4">
+      <div class="row g-4">
+        {% if profile.name %}
+          <div class="col-12">
+            <h5 class="text-muted mb-2">Name</h5>
+            <p class="mb-0">{{ profile.name }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.age %}
+          <div class="col-12 col-md-6">
+            <h5 class="text-muted mb-2">Age</h5>
+            <p class="mb-0">{{ profile.age }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.looking_for %}
+          <div class="col-12 col-md-6">
+            <h5 class="text-muted mb-2">Looking For</h5>
+            <p class="mb-0">{{ profile.looking_for }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.bio %}
+          <div class="col-12">
+            <h5 class="text-muted mb-2">Bio</h5>
+            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.bio }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.qualification %}
+          <div class="col-12">
+            <h5 class="text-muted mb-2">Qualification</h5>
+            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.qualification }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.experience %}
+          <div class="col-12">
+            <h5 class="text-muted mb-2">Experience</h5>
+            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.experience }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.projects %}
+          <div class="col-12">
+            <h5 class="text-muted mb-2">Projects</h5>
+            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.projects }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.skills %}
+          <div class="col-12">
+            <h5 class="text-muted mb-2">Skills</h5>
+            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.skills }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.achievements %}
+          <div class="col-12">
+            <h5 class="text-muted mb-2">Achievements</h5>
+            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.achievements }}</p>
+          </div>
+        {% endif %}
+
+        {% if profile.portfolio_links %}
+          <div class="col-12">
+            <h5 class="text-muted mb-2">Portfolio Links</h5>
+            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.portfolio_links }}</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <p class="text-muted small mt-3 mb-0">
+    Tip: Select and copy any section above to paste into job application forms.
+  </p>
+{% else %}
+  <div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+      <p class="text-muted mb-3">You haven't created your profile yet.</p>
+      <a class="btn btn-primary" href="{{ url_for('edit_profile') }}">Create Profile</a>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
+
