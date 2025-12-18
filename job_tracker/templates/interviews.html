@@ -3,10 +3,10 @@
 {% block title %}Interviews • Job Tracker{% endblock %}
 
 {% block content %}
-  <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+  <div class="page-header">
     <div>
-      <h1 class="h3 mb-1">Interviews</h1>
-      <p class="text-muted mb-0">Upcoming interviews are highlighted. Today’s interviews stand out the most.</p>
+      <h1 class="page-title">Interviews</h1>
+      <p class="page-subtitle">Upcoming interviews are highlighted. Today's interviews stand out the most.</p>
     </div>
   </div>
 
@@ -15,133 +15,130 @@
   {% endif %}
 
   {% if calendar_url %}
-    <div class="alert alert-success d-flex align-items-center justify-content-between" role="alert">
+    <div class="alert alert-success" role="alert" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--spacing-md);">
       <div>
         <strong>Interview saved!</strong> Add it to your Google Calendar:
       </div>
       <a class="btn btn-success btn-sm" href="{{ calendar_url }}" target="_blank" rel="noopener noreferrer">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar-plus me-1" viewBox="0 0 16 16">
-          <path d="M8 7a.5.5 0 0 1 .5.5V9H10a.5.5 0 0 1 0 1H8.5v1.5a.5.5 0 0 1-1 0V10H6a.5.5 0 0 1 0-1h1.5V7.5A.5.5 0 0 1 8 7z"/>
-          <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
+        <svg style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
         Add to Google Calendar
       </a>
     </div>
   {% endif %}
 
-  <div class="row g-3">
-    <div class="col-12">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Upcoming Interviews</h2>
-          <div class="table-responsive">
-            <table class="table table-striped align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Venue</th>
-                  <th>Company</th>
-                  <th>Role</th>
-                  <th class="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% if upcoming and upcoming|length > 0 %}
-                  {% for item in upcoming %}
-                    <tr class="{% if item.is_today %}table-success{% elif item.is_soon %}table-warning{% endif %}">
-                      <td>
-                        {{ item.interview_date }}
-                        {% if item.is_today %}
-                          <span class="badge text-bg-success ms-2">Today</span>
-                        {% endif %}
-                      </td>
-                      <td>{{ item.interview_time or "-" }}</td>
-                      <td>{{ item.interview_venue or "-" }}</td>
-                      <td class="fw-semibold">{{ item.company }}</td>
-                      <td>{{ item.role }}</td>
-                      <td class="text-end">
-                        {% if item.calendar_url %}
-                          <a class="btn btn-sm btn-success" href="{{ item.calendar_url }}" target="_blank" rel="noopener noreferrer" title="Add to Google Calendar">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-calendar-plus" viewBox="0 0 16 16">
-                              <path d="M8 7a.5.5 0 0 1 .5.5V9H10a.5.5 0 0 1 0 1H8.5v1.5a.5.5 0 0 1-1 0V10H6a.5.5 0 0 1 0-1h1.5V7.5A.5.5 0 0 1 8 7z"/>
-                              <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
-                            </svg>
-                          </a>
-                        {% endif %}
-                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('confirm_interview', job_id=item.id) }}">Edit</a>
-                        <a class="btn btn-sm btn-success" href="{{ url_for('complete_interview', job_id=item.id) }}">Complete</a>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                {% else %}
-                  <tr>
-                    <td colspan="6" class="text-center text-muted py-4">No upcoming interviews.</td>
-                  </tr>
-                {% endif %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+  <!-- Upcoming Interviews -->
+  <div class="card" style="margin-bottom: var(--spacing-xl);">
+    <div class="card-header">
+      <h2 class="card-title">Upcoming Interviews</h2>
     </div>
+    {% if upcoming and upcoming|length > 0 %}
+      <div class="interviews-timeline" style="padding: var(--spacing-lg);">
+        {% for item in upcoming %}
+          <div class="interview-item upcoming {% if item.is_today %}today{% elif item.is_soon %}soon{% endif %}" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+            <div style="display: grid; grid-template-columns: auto 1fr auto; gap: var(--spacing-lg); align-items: start;">
+              <div style="text-align: center; min-width: 100px;">
+                <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: var(--spacing-xs);">
+                  {{ item.interview_date.strftime('%b') if item.interview_date else '' }}
+                </div>
+                <div style="font-size: 2rem; font-weight: 700; color: var(--accent-primary); line-height: 1;">
+                  {{ item.interview_date.day if item.interview_date else '' }}
+                </div>
+                <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: var(--spacing-xs);">
+                  {{ item.interview_time or '' }}
+                </div>
+                {% if item.is_today %}
+                  <span style="display: inline-block; margin-top: var(--spacing-xs); padding: 0.25rem 0.5rem; background: var(--accent-success); color: white; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                    TODAY
+                  </span>
+                {% endif %}
+              </div>
+              <div style="flex: 1;">
+                <h3 style="margin: 0 0 var(--spacing-xs) 0; font-size: 1.25rem; font-weight: 600; color: var(--text-primary);">
+                  {{ item.company }}
+                </h3>
+                <p style="margin: 0 0 var(--spacing-sm) 0; color: var(--text-secondary);">{{ item.role }}</p>
+                <div style="display: flex; align-items: center; gap: var(--spacing-xs); color: var(--text-secondary); font-size: 0.875rem;">
+                  <svg style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>{{ item.interview_venue or 'Online' }}</span>
+                </div>
+              </div>
+              <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                {% if item.calendar_url %}
+                  <a class="btn btn-sm btn-success" href="{{ item.calendar_url }}" target="_blank" rel="noopener noreferrer" title="Add to Google Calendar">
+                    <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </a>
+                {% endif %}
+                <a class="btn btn-sm btn-secondary" href="{{ url_for('confirm_interview', job_id=item.id) }}">Edit</a>
+                <a class="btn btn-sm btn-success" href="{{ url_for('complete_interview', job_id=item.id) }}">Complete</a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding: var(--spacing-xl);">
+        <div class="empty-state-icon">📅</div>
+        <p style="margin: 0; color: var(--text-secondary);">No upcoming interviews scheduled.</p>
+      </div>
+    {% endif %}
+  </div>
 
-    <div class="col-12">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h2 class="h5 mb-3">Interview Done / Past</h2>
-          <div class="table-responsive">
-            <table class="table table-striped align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Venue</th>
-                  <th>Company</th>
-                  <th>Role</th>
-                  <th>Difficulty</th>
-                  <th>Experience</th>
-                  <th class="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% if past and past|length > 0 %}
-                  {% for item in past %}
-                    <tr class="{% if item.is_missed %}table-danger{% endif %}">
-                      <td>{{ item.interview_date }}</td>
-                      <td>{{ item.interview_time or "-" }}</td>
-                      <td>{{ item.interview_venue or "-" }}</td>
-                      <td class="fw-semibold">{{ item.company }}</td>
-                      <td>{{ item.role }}</td>
-                      <td>{{ item.interview_difficulty or "-" }}</td>
-                      <td class="notes-cell">
-                        {% if item.interview_experience_notes %}
-                          {{ item.interview_experience_notes }}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
-                      <td class="text-end">
-                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('confirm_interview', job_id=item.id) }}">Edit</a>
-                        <a class="btn btn-sm btn-outline-success" href="{{ url_for('complete_interview', job_id=item.id) }}">Feedback</a>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                {% else %}
-                  <tr>
-                    <td colspan="8" class="text-center text-muted py-4">No past interviews.</td>
-                  </tr>
-                {% endif %}
-              </tbody>
-            </table>
-          </div>
-          <p class="text-muted small mt-3 mb-0">
-            Past interviews marked red are “missed” (date passed but not marked completed).
-          </p>
+  <!-- Past Interviews -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Past Interviews</h2>
+    </div>
+    {% if past and past|length > 0 %}
+      <div style="padding: var(--spacing-lg);">
+        <div style="display: grid; gap: var(--spacing-md);">
+          {% for item in past %}
+            <div class="interview-item past" style="background: var(--bg-tertiary); border-radius: var(--radius-md); padding: var(--spacing-md); animation-delay: {{ loop.index0 * 0.05 }}s;">
+              <div style="display: grid; grid-template-columns: 1fr auto; gap: var(--spacing-md); align-items: start;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-sm);">
+                    <h4 style="margin: 0; font-size: 1.125rem; font-weight: 600; color: var(--text-primary);">
+                      {{ item.company }} - {{ item.role }}
+                    </h4>
+                    {% if item.is_missed %}
+                      <span style="padding: 0.25rem 0.5rem; background: rgba(255, 107, 107, 0.15); color: #c92a2a; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                        Missed
+                      </span>
+                    {% endif %}
+                  </div>
+                  <div style="display: flex; gap: var(--spacing-lg); flex-wrap: wrap; font-size: 0.875rem; color: var(--text-secondary);">
+                    <span>{{ item.interview_date }} at {{ item.interview_time or 'N/A' }}</span>
+                    <span>{{ item.interview_venue or 'Online' }}</span>
+                    {% if item.interview_difficulty %}
+                      <span>Difficulty: {{ item.interview_difficulty }}</span>
+                    {% endif %}
+                  </div>
+                  {% if item.interview_experience_notes %}
+                    <div style="margin-top: var(--spacing-sm); padding-top: var(--spacing-sm); border-top: 1px solid var(--border-color);">
+                      <p style="margin: 0; font-size: 0.875rem; color: var(--text-primary); white-space: pre-wrap;">{{ item.interview_experience_notes }}</p>
+                    </div>
+                  {% endif %}
+                </div>
+                <div style="display: flex; gap: var(--spacing-xs);">
+                  <a class="btn btn-sm btn-secondary" href="{{ url_for('confirm_interview', job_id=item.id) }}">Edit</a>
+                  <a class="btn btn-sm btn-secondary" href="{{ url_for('complete_interview', job_id=item.id) }}">Feedback</a>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
       </div>
-    </div>
+    {% else %}
+      <div class="empty-state" style="padding: var(--spacing-xl);">
+        <div class="empty-state-icon">📝</div>
+        <p style="margin: 0; color: var(--text-secondary);">No past interviews recorded.</p>
+      </div>
+    {% endif %}
   </div>
 {% endblock %}
-
-

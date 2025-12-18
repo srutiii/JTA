@@ -1,107 +1,226 @@
 {% extends "base.html" %}
 
-{% block title %}About Me • Job Application Tracker{% endblock %}
+{% block title %}About Me • Job Tracker{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
-  <div>
-    <h1 class="h3 mb-1">About Me</h1>
-    <p class="text-muted mb-0">Your profile information for easy copy-paste into job applications.</p>
-  </div>
-  <a class="btn btn-primary" href="{{ url_for('edit_profile') }}">Edit Profile</a>
-</div>
-
-{% if error_message %}
-  <div class="alert alert-danger" role="alert">{{ error_message }}</div>
-{% endif %}
-
-{% if profile %}
-  <div class="card shadow-sm">
-    <div class="card-body p-4">
-      <div class="row g-4">
-        {% if profile.name %}
-          <div class="col-12">
-            <h5 class="text-muted mb-2">Name</h5>
-            <p class="mb-0">{{ profile.name }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.age %}
-          <div class="col-12 col-md-6">
-            <h5 class="text-muted mb-2">Age</h5>
-            <p class="mb-0">{{ profile.age }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.looking_for %}
-          <div class="col-12 col-md-6">
-            <h5 class="text-muted mb-2">Looking For</h5>
-            <p class="mb-0">{{ profile.looking_for }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.bio %}
-          <div class="col-12">
-            <h5 class="text-muted mb-2">Bio</h5>
-            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.bio }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.qualification %}
-          <div class="col-12">
-            <h5 class="text-muted mb-2">Qualification</h5>
-            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.qualification }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.experience %}
-          <div class="col-12">
-            <h5 class="text-muted mb-2">Experience</h5>
-            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.experience }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.projects %}
-          <div class="col-12">
-            <h5 class="text-muted mb-2">Projects</h5>
-            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.projects }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.skills %}
-          <div class="col-12">
-            <h5 class="text-muted mb-2">Skills</h5>
-            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.skills }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.achievements %}
-          <div class="col-12">
-            <h5 class="text-muted mb-2">Achievements</h5>
-            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.achievements }}</p>
-          </div>
-        {% endif %}
-
-        {% if profile.portfolio_links %}
-          <div class="col-12">
-            <h5 class="text-muted mb-2">Portfolio Links</h5>
-            <p class="mb-0" style="white-space: pre-wrap;">{{ profile.portfolio_links }}</p>
-          </div>
-        {% endif %}
-      </div>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">About Me</h1>
+      <p class="page-subtitle">Your profile information for easy copy-paste into job applications</p>
     </div>
+    <a href="{{ url_for('edit_profile') }}" class="btn btn-primary">
+      <svg style="width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      </svg>
+      Edit Profile
+    </a>
   </div>
 
-  <p class="text-muted small mt-3 mb-0">
-    Tip: Select and copy any section above to paste into job application forms.
-  </p>
-{% else %}
-  <div class="card shadow-sm">
-    <div class="card-body text-center py-5">
-      <p class="text-muted mb-3">You haven't created your profile yet.</p>
-      <a class="btn btn-primary" href="{{ url_for('edit_profile') }}">Create Profile</a>
+  {% if error_message %}
+    <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+  {% endif %}
+
+  {% if profile %}
+    <div style="display: grid; gap: var(--spacing-lg);">
+      {% if profile.name %}
+        <div class="about-section" style="animation-delay: 0s;">
+          <div class="about-section-header">
+            <h3 class="section-title">Name</h3>
+            <button class="copy-btn" onclick="copyToClipboard('name-content')" title="Copy to clipboard">
+              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div id="name-content" class="section-content">{{ profile.name }}</div>
+        </div>
+      {% endif %}
+
+      {% if profile.age or profile.looking_for %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--spacing-lg);">
+          {% if profile.age %}
+            <div class="about-section" style="animation-delay: 0.1s;">
+              <div class="about-section-header">
+                <h3 class="section-title">Age</h3>
+                <button class="copy-btn" onclick="copyToClipboard('age-content')" title="Copy to clipboard">
+                  <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy
+                </button>
+              </div>
+              <div id="age-content" class="section-content">{{ profile.age }}</div>
+            </div>
+          {% endif %}
+
+          {% if profile.looking_for %}
+            <div class="about-section" style="animation-delay: 0.1s;">
+              <div class="about-section-header">
+                <h3 class="section-title">Looking For</h3>
+                <button class="copy-btn" onclick="copyToClipboard('looking-content')" title="Copy to clipboard">
+                  <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy
+                </button>
+              </div>
+              <div id="looking-content" class="section-content">{{ profile.looking_for }}</div>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if profile.bio %}
+        <div class="about-section" style="animation-delay: 0.2s;">
+          <div class="about-section-header">
+            <h3 class="section-title">Bio</h3>
+            <button class="copy-btn" onclick="copyToClipboard('bio-content')" title="Copy to clipboard">
+              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div id="bio-content" class="section-content">{{ profile.bio }}</div>
+        </div>
+      {% endif %}
+
+      {% if profile.qualification %}
+        <div class="about-section" style="animation-delay: 0.3s;">
+          <div class="about-section-header">
+            <h3 class="section-title">Qualification</h3>
+            <button class="copy-btn" onclick="copyToClipboard('qualification-content')" title="Copy to clipboard">
+              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div id="qualification-content" class="section-content">{{ profile.qualification }}</div>
+        </div>
+      {% endif %}
+
+      {% if profile.experience %}
+        <div class="about-section" style="animation-delay: 0.4s;">
+          <div class="about-section-header">
+            <h3 class="section-title">Experience</h3>
+            <button class="copy-btn" onclick="copyToClipboard('experience-content')" title="Copy to clipboard">
+              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div id="experience-content" class="section-content">{{ profile.experience }}</div>
+        </div>
+      {% endif %}
+
+      {% if profile.projects %}
+        <div class="about-section" style="animation-delay: 0.5s;">
+          <div class="about-section-header">
+            <h3 class="section-title">Projects</h3>
+            <button class="copy-btn" onclick="copyToClipboard('projects-content')" title="Copy to clipboard">
+              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div id="projects-content" class="section-content">{{ profile.projects }}</div>
+        </div>
+      {% endif %}
+
+      {% if profile.skills %}
+        <div class="about-section" style="animation-delay: 0.6s;">
+          <div class="about-section-header">
+            <h3 class="section-title">Skills</h3>
+            <button class="copy-btn" onclick="copyToClipboard('skills-content')" title="Copy to clipboard">
+              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div id="skills-content" class="section-content">{{ profile.skills }}</div>
+        </div>
+      {% endif %}
+
+      {% if profile.achievements %}
+        <div class="about-section" style="animation-delay: 0.7s;">
+          <div class="about-section-header">
+            <h3 class="section-title">Achievements</h3>
+            <button class="copy-btn" onclick="copyToClipboard('achievements-content')" title="Copy to clipboard">
+              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div id="achievements-content" class="section-content">{{ profile.achievements }}</div>
+        </div>
+      {% endif %}
+
+      {% if profile.portfolio_links %}
+        <div class="about-section" style="animation-delay: 0.8s;">
+          <div class="about-section-header">
+            <h3 class="section-title">Portfolio Links</h3>
+            <button class="copy-btn" onclick="copyToClipboard('portfolio-content')" title="Copy to clipboard">
+              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+          <div id="portfolio-content" class="section-content">{{ profile.portfolio_links }}</div>
+        </div>
+      {% endif %}
     </div>
-  </div>
-{% endif %}
+  {% else %}
+    <div class="card empty-state">
+      <div class="empty-state-icon">👤</div>
+      <h3 style="margin: 0 0 var(--spacing-sm) 0; color: var(--text-primary);">No profile yet</h3>
+      <p style="margin: 0 0 var(--spacing-lg) 0; color: var(--text-secondary);">
+        Create your profile to easily copy-paste information into job applications.
+      </p>
+      <a href="{{ url_for('edit_profile') }}" class="btn btn-primary">Create Profile</a>
+    </div>
+  {% endif %}
+
+  <script>
+    function copyToClipboard(elementId) {
+      const element = document.getElementById(elementId);
+      const text = element.textContent || element.innerText;
+      
+      // Create temporary textarea
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      try {
+        document.execCommand('copy');
+        // Visual feedback
+        const btn = event.target.closest('.copy-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Copied!';
+        btn.style.background = 'var(--accent-success)';
+        btn.style.color = 'white';
+        btn.style.borderColor = 'var(--accent-success)';
+        
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.background = '';
+          btn.style.color = '';
+          btn.style.borderColor = '';
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+      
+      document.body.removeChild(textarea);
+    }
+  </script>
 {% endblock %}
-
