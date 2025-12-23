@@ -6,7 +6,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Edit Profile</h1>
-      <p class="page-subtitle">Fill in your information for easy copy-paste into job applications</p>
+      <p class="page-subtitle">Create and manage your complete professional profile</p>
     </div>
     <a href="{{ url_for('about_me') }}" class="btn btn-secondary">
       <svg style="width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -16,115 +16,265 @@
     </a>
   </div>
 
-  <div class="card" style="max-width: 900px;">
-    <form method="POST" action="{{ url_for('edit_profile') }}">
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--spacing-lg);">
-        <div class="form-group">
-          <label class="form-label">Name</label>
-          <input
-            type="text"
-            class="form-control"
-            name="name"
-            placeholder="Your full name"
-            value="{{ profile.name if profile else '' }}"
-          />
+  <div class="card" style="max-width: 1000px;">
+    <!-- CV Upload Banner -->
+    <div class="auto-fill-banner" style="background: var(--blue-50); border: 1px solid var(--blue-200); border-radius: var(--radius-lg); padding: var(--spacing-5); margin-bottom: var(--spacing-6); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--spacing-4);">
+      <div style="display: flex; align-items: center; gap: var(--spacing-3);">
+        <div style="width: 40px; height: 40px; background: var(--blue-500); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg style="width: 20px; height: 20px; color: white;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
         </div>
-
-        <div class="form-group">
-          <label class="form-label">Age</label>
-          <input
-            type="number"
-            class="form-control"
-            name="age"
-            placeholder="e.g. 25"
-            min="1"
-            max="120"
-            value="{{ profile.age if profile and profile.age else '' }}"
-          />
+        <div>
+          <div style="font-weight: var(--font-weight-semibold); color: var(--text-primary); margin-bottom: var(--spacing-1);">
+            Quick Start: Upload CV
+          </div>
+          <div style="font-size: var(--font-size-sm); color: var(--text-secondary);">
+            {% if has_cv %}
+              Upload a new CV to automatically update your profile
+            {% else %}
+              Upload your CV to automatically create your profile
+            {% endif %}
+          </div>
         </div>
+      </div>
+      <a href="{{ url_for('upload_cv') }}" class="btn btn-primary">
+        <svg style="width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        Upload CV
+      </a>
+    </div>
 
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label class="form-label">Looking For</label>
-          <input
-            type="text"
-            class="form-control"
-            name="looking_for"
-            placeholder="e.g. Software Developer, Data Analyst, Remote positions"
-            value="{{ profile.looking_for if profile else '' }}"
-          />
-        </div>
-
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label class="form-label">Bio</label>
-          <textarea
-            class="form-control"
-            name="bio"
-            rows="4"
-            placeholder="A brief introduction about yourself..."
-          >{{ profile.bio if profile else '' }}</textarea>
-        </div>
-
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label class="form-label">Qualification</label>
-          <textarea
-            class="form-control"
-            name="qualification"
-            rows="4"
-            placeholder="Your educational background, degrees, certifications..."
-          >{{ profile.qualification if profile else '' }}</textarea>
-        </div>
-
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label class="form-label">Experience</label>
-          <textarea
-            class="form-control"
-            name="experience"
-            rows="5"
-            placeholder="Your work experience, internships, relevant roles..."
-          >{{ profile.experience if profile else '' }}</textarea>
-        </div>
-
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label class="form-label">Projects</label>
-          <textarea
-            class="form-control"
-            name="projects"
-            rows="5"
-            placeholder="Notable projects you've worked on, GitHub links, descriptions..."
-          >{{ profile.projects if profile else '' }}</textarea>
-        </div>
-
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label class="form-label">Skills</label>
-          <textarea
-            class="form-control"
-            name="skills"
-            rows="4"
-            placeholder="Technical skills, programming languages, tools, frameworks..."
-          >{{ profile.skills if profile else '' }}</textarea>
-        </div>
-
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label class="form-label">Achievements</label>
-          <textarea
-            class="form-control"
-            name="achievements"
-            rows="4"
-            placeholder="Awards, recognitions, certifications, notable accomplishments..."
-          >{{ profile.achievements if profile else '' }}</textarea>
-        </div>
-
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label class="form-label">Portfolio Links</label>
-          <textarea
-            class="form-control"
-            name="portfolio_links"
-            rows="3"
-            placeholder="GitHub, LinkedIn, personal website, portfolio URLs (one per line)"
-          >{{ profile.portfolio_links if profile else '' }}</textarea>
+    <form method="POST" action="{{ url_for('edit_profile') }}" id="profileForm">
+      
+      <!-- Identity Section -->
+      <div class="form-section">
+        <h2 class="section-title">Identity</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-lg);">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" name="identity_name" 
+                   value="{{ profile_data.identity.name if profile_data and profile_data.identity else (profile.name if profile else '') }}" 
+                   placeholder="Your full name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="identity_email" 
+                   value="{{ profile_data.identity.email if profile_data and profile_data.identity else (profile.email if profile else '') }}" 
+                   placeholder="your.email@example.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="tel" class="form-control" name="identity_phone" 
+                   value="{{ profile_data.identity.phone if profile_data and profile_data.identity else (profile.phone if profile else '') }}" 
+                   placeholder="+1 (555) 123-4567" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Location</label>
+            <input type="text" class="form-control" name="identity_location" 
+                   value="{{ profile_data.identity.location if profile_data and profile_data.identity else '' }}" 
+                   placeholder="City, Country" />
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label class="form-label">Portfolio Links (one per line)</label>
+            <textarea class="form-control" name="identity_links" rows="3" 
+                      placeholder="https://github.com/username&#10;https://linkedin.com/in/username&#10;https://yourwebsite.com">{{ profile_data.identity.links|join('\n') if profile_data and profile_data.identity and profile_data.identity.links else (profile.portfolio_links if profile and profile.portfolio_links else '') }}</textarea>
+          </div>
         </div>
       </div>
 
+      <!-- Career Intent Section -->
+      <div class="form-section">
+        <h2 class="section-title">Career Intent</h2>
+        <div style="display: grid; gap: var(--spacing-lg);">
+          <div class="form-group">
+            <label class="form-label">Current Status</label>
+            <input type="text" class="form-control" name="career_current_status" 
+                   value="{{ profile_data.career_intent.current_status if profile_data and profile_data.career_intent else '' }}" 
+                   placeholder="e.g. Software Engineer, Student, Looking for opportunities" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Target Roles (comma-separated)</label>
+            <input type="text" class="form-control" name="career_target_roles" 
+                   value="{{ profile_data.career_intent.target_roles|join(', ') if profile_data and profile_data.career_intent and profile_data.career_intent.target_roles else (profile.looking_for if profile and profile.looking_for else '') }}" 
+                   placeholder="e.g. Software Developer, Frontend Engineer, Full Stack Developer" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Industry</label>
+            <input type="text" class="form-control" name="career_industry" 
+                   value="{{ profile_data.career_intent.industry if profile_data and profile_data.career_intent else '' }}" 
+                   placeholder="e.g. Technology, Finance, Healthcare" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Professional Summary -->
+      <div class="form-section">
+        <h2 class="section-title">Professional Summary</h2>
+        <div class="form-group">
+          <textarea class="form-control" name="professional_summary" rows="5" 
+                    placeholder="A brief 3-5 line summary of your professional background, key strengths, and career goals...">{{ profile_data.professional_summary if profile_data else (profile.bio if profile and profile.bio else '') }}</textarea>
+        </div>
+      </div>
+
+      <!-- Skills Section -->
+      <div class="form-section">
+        <h2 class="section-title">Skills</h2>
+        <div style="display: grid; gap: var(--spacing-lg);">
+          <div class="form-group">
+            <label class="form-label">Technical Skills (comma-separated)</label>
+            <textarea class="form-control" name="skills_technical" rows="3" 
+                      placeholder="Python, JavaScript, Java, C++, SQL...">{{ profile_data.skills_json.technical|join(', ') if profile_data and profile_data.skills_json and profile_data.skills_json.technical else '' }}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tools & Frameworks (comma-separated)</label>
+            <textarea class="form-control" name="skills_tools" rows="3" 
+                      placeholder="React, Django, Docker, AWS, Git...">{{ profile_data.skills_json.tools|join(', ') if profile_data and profile_data.skills_json and profile_data.skills_json.tools else '' }}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Soft Skills (comma-separated)</label>
+            <textarea class="form-control" name="skills_soft" rows="2" 
+                      placeholder="Communication, Leadership, Problem-solving...">{{ profile_data.skills_json.soft|join(', ') if profile_data and profile_data.skills_json and profile_data.skills_json.soft else '' }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Experience Section -->
+      <div class="form-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+          <h2 class="section-title" style="margin: 0;">Experience</h2>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addExperience()">
+            <svg style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Experience
+          </button>
+        </div>
+        <div id="experienceContainer">
+          {% if profile_data and profile_data.experience_json and profile_data.experience_json|length > 0 %}
+            {% for exp in profile_data.experience_json %}
+              <div class="dynamic-item" data-index="{{ loop.index0 }}">
+                <div style="display: grid; gap: var(--spacing-md);">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+                    <div class="form-group">
+                      <label class="form-label">Company</label>
+                      <input type="text" class="form-control" name="exp_{{ loop.index0 }}_company" value="{{ exp.company }}" placeholder="Company name" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Role</label>
+                      <input type="text" class="form-control" name="exp_{{ loop.index0 }}_role" value="{{ exp.role }}" placeholder="Job title" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Duration</label>
+                    <input type="text" class="form-control" name="exp_{{ loop.index0 }}_duration" value="{{ exp.duration }}" placeholder="e.g. Jan 2020 - Present" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Responsibilities (one per line)</label>
+                    <textarea class="form-control" name="exp_{{ loop.index0 }}_responsibilities" rows="4" placeholder="Key responsibilities and achievements...">{{ exp.responsibilities|join('\n') if exp.responsibilities else '' }}</textarea>
+                  </div>
+                  <button type="button" class="btn btn-sm" style="background: var(--accent-danger); color: white;" onclick="removeItem(this)">Remove</button>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <input type="hidden" id="experienceCount" name="experience_count" value="{{ profile_data.experience_json|length if profile_data and profile_data.experience_json else 0 }}" />
+      </div>
+
+      <!-- Education Section -->
+      <div class="form-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+          <h2 class="section-title" style="margin: 0;">Education</h2>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addEducation()">
+            <svg style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Education
+          </button>
+        </div>
+        <div id="educationContainer">
+          {% if profile_data and profile_data.education_json and profile_data.education_json|length > 0 %}
+            {% for edu in profile_data.education_json %}
+              <div class="dynamic-item" data-index="{{ loop.index0 }}">
+                <div style="display: grid; gap: var(--spacing-md);">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+                    <div class="form-group">
+                      <label class="form-label">Degree</label>
+                      <input type="text" class="form-control" name="edu_{{ loop.index0 }}_degree" value="{{ edu.degree }}" placeholder="e.g. Bachelor of Science" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Institution</label>
+                      <input type="text" class="form-control" name="edu_{{ loop.index0 }}_institution" value="{{ edu.institution }}" placeholder="University name" />
+                    </div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+                    <div class="form-group">
+                      <label class="form-label">Year</label>
+                      <input type="text" class="form-control" name="edu_{{ loop.index0 }}_year" value="{{ edu.year }}" placeholder="e.g. 2020" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Specialization</label>
+                      <input type="text" class="form-control" name="edu_{{ loop.index0 }}_specialization" value="{{ edu.specialization }}" placeholder="e.g. Computer Science" />
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-sm" style="background: var(--accent-danger); color: white;" onclick="removeItem(this)">Remove</button>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <input type="hidden" id="educationCount" name="education_count" value="{{ profile_data.education_json|length if profile_data and profile_data.education_json else 0 }}" />
+      </div>
+
+      <!-- Projects Section -->
+      <div class="form-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+          <h2 class="section-title" style="margin: 0;">Projects</h2>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addProject()">
+            <svg style="width: 16px; height: 16px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Project
+          </button>
+        </div>
+        <div id="projectsContainer">
+          {% if profile_data and profile_data.projects_json and profile_data.projects_json|length > 0 %}
+            {% for proj in profile_data.projects_json %}
+              <div class="dynamic-item" data-index="{{ loop.index0 }}">
+                <div style="display: grid; gap: var(--spacing-md);">
+                  <div class="form-group">
+                    <label class="form-label">Project Name</label>
+                    <input type="text" class="form-control" name="proj_{{ loop.index0 }}_name" value="{{ proj.name }}" placeholder="Project name" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Tech Stack</label>
+                    <input type="text" class="form-control" name="proj_{{ loop.index0 }}_tech_stack" value="{{ proj.tech_stack }}" placeholder="e.g. React, Node.js, MongoDB" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Impact / Description</label>
+                    <textarea class="form-control" name="proj_{{ loop.index0 }}_impact" rows="3" placeholder="Brief description of the project and its impact...">{{ proj.impact }}</textarea>
+                  </div>
+                  <button type="button" class="btn btn-sm" style="background: var(--accent-danger); color: white;" onclick="removeItem(this)">Remove</button>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <input type="hidden" id="projectsCount" name="projects_count" value="{{ profile_data.projects_json|length if profile_data and profile_data.projects_json else 0 }}" />
+      </div>
+
+      <!-- Achievements Section -->
+      <div class="form-section">
+        <h2 class="section-title">Achievements & Certifications</h2>
+        <div class="form-group">
+          <textarea class="form-control" name="achievements" rows="5" 
+                    placeholder="List your achievements, awards, certifications (one per line)...">{{ profile_data.achievements_json|join('\n') if profile_data and profile_data.achievements_json else (profile.achievements if profile and profile.achievements else '') }}</textarea>
+        </div>
+      </div>
+
+      <!-- Submit Buttons -->
       <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl); padding-top: var(--spacing-lg); border-top: 1px solid var(--border-color);">
         <button type="submit" class="btn btn-primary" style="flex: 1;">
           <svg style="width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -137,7 +287,142 @@
     </form>
   </div>
 
-  <p style="margin-top: var(--spacing-lg); color: var(--text-secondary); font-size: 0.875rem;">
-    All fields are optional. Fill in what's relevant for your job applications.
-  </p>
+  <style>
+    .form-section {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-xl);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .form-section:last-of-type {
+      border-bottom: none;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 var(--spacing-lg) 0;
+    }
+
+    .dynamic-item {
+      background: var(--gray-50);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .btn-sm {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: 0.875rem;
+    }
+  </style>
+
+  <script>
+    let expIndex = {{ profile_data.experience_json|length if profile_data and profile_data.experience_json else 0 }};
+    let eduIndex = {{ profile_data.education_json|length if profile_data and profile_data.education_json else 0 }};
+    let projIndex = {{ profile_data.projects_json|length if profile_data and profile_data.projects_json else 0 }};
+
+    function addExperience() {
+      const container = document.getElementById('experienceContainer');
+      const item = document.createElement('div');
+      item.className = 'dynamic-item';
+      item.innerHTML = `
+        <div style="display: grid; gap: var(--spacing-md);">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+            <div class="form-group">
+              <label class="form-label">Company</label>
+              <input type="text" class="form-control" name="exp_${expIndex}_company" placeholder="Company name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <input type="text" class="form-control" name="exp_${expIndex}_role" placeholder="Job title" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duration</label>
+            <input type="text" class="form-control" name="exp_${expIndex}_duration" placeholder="e.g. Jan 2020 - Present" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Responsibilities (one per line)</label>
+            <textarea class="form-control" name="exp_${expIndex}_responsibilities" rows="4" placeholder="Key responsibilities and achievements..."></textarea>
+          </div>
+          <button type="button" class="btn btn-sm" style="background: var(--accent-danger); color: white;" onclick="removeItem(this)">Remove</button>
+        </div>
+      `;
+      container.appendChild(item);
+      document.getElementById('experienceCount').value = ++expIndex;
+    }
+
+    function addEducation() {
+      const container = document.getElementById('educationContainer');
+      const item = document.createElement('div');
+      item.className = 'dynamic-item';
+      item.innerHTML = `
+        <div style="display: grid; gap: var(--spacing-md);">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+            <div class="form-group">
+              <label class="form-label">Degree</label>
+              <input type="text" class="form-control" name="edu_${eduIndex}_degree" placeholder="e.g. Bachelor of Science" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Institution</label>
+              <input type="text" class="form-control" name="edu_${eduIndex}_institution" placeholder="University name" />
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+            <div class="form-group">
+              <label class="form-label">Year</label>
+              <input type="text" class="form-control" name="edu_${eduIndex}_year" placeholder="e.g. 2020" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Specialization</label>
+              <input type="text" class="form-control" name="edu_${eduIndex}_specialization" placeholder="e.g. Computer Science" />
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm" style="background: var(--accent-danger); color: white;" onclick="removeItem(this)">Remove</button>
+        </div>
+      `;
+      container.appendChild(item);
+      document.getElementById('educationCount').value = ++eduIndex;
+    }
+
+    function addProject() {
+      const container = document.getElementById('projectsContainer');
+      const item = document.createElement('div');
+      item.className = 'dynamic-item';
+      item.innerHTML = `
+        <div style="display: grid; gap: var(--spacing-md);">
+          <div class="form-group">
+            <label class="form-label">Project Name</label>
+            <input type="text" class="form-control" name="proj_${projIndex}_name" placeholder="Project name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tech Stack</label>
+            <input type="text" class="form-control" name="proj_${projIndex}_tech_stack" placeholder="e.g. React, Node.js, MongoDB" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Impact / Description</label>
+            <textarea class="form-control" name="proj_${projIndex}_impact" rows="3" placeholder="Brief description of the project and its impact..."></textarea>
+          </div>
+          <button type="button" class="btn btn-sm" style="background: var(--accent-danger); color: white;" onclick="removeItem(this)">Remove</button>
+        </div>
+      `;
+      container.appendChild(item);
+      document.getElementById('projectsCount').value = ++projIndex;
+    }
+
+    function removeItem(btn) {
+      const item = btn.closest('.dynamic-item');
+      item.remove();
+      updateCounts();
+    }
+
+    function updateCounts() {
+      document.getElementById('experienceCount').value = document.getElementById('experienceContainer').children.length;
+      document.getElementById('educationCount').value = document.getElementById('educationContainer').children.length;
+      document.getElementById('projectsCount').value = document.getElementById('projectsContainer').children.length;
+    }
+  </script>
 {% endblock %}

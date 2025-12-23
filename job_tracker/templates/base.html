@@ -19,10 +19,12 @@
         <aside class="sidebar">
           <div class="sidebar-header">
             <a href="{{ url_for('index') }}" class="sidebar-logo">
-              <svg class="sidebar-nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Job Tracker
+              <div class="logo-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <span class="logo-text">Job Tracker</span>
             </a>
           </div>
           
@@ -50,6 +52,14 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   Interviews
+                </a>
+              </li>
+              <li class="sidebar-nav-item">
+                <a href="{{ url_for('upload_cv') }}" class="sidebar-nav-link {% if request.endpoint == 'upload_cv' %}active{% endif %}">
+                  <svg class="sidebar-nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Upload CV
                 </a>
               </li>
               <li class="sidebar-nav-item">
@@ -101,21 +111,52 @@
         .auth-nav {
           background: var(--bg-secondary);
           border-bottom: 1px solid var(--border-color);
-          padding: var(--spacing-md) var(--spacing-xl);
+          padding: var(--spacing-6) var(--spacing-8);
           display: flex;
           align-items: center;
           justify-content: space-between;
+          box-shadow: var(--shadow-xs);
         }
         .auth-nav .logo {
-          font-size: 1.25rem;
-          font-weight: 700;
+          font-size: var(--font-size-xl);
+          font-weight: var(--font-weight-bold);
           color: var(--text-primary);
           text-decoration: none;
+          display: flex;
+          align-items: center;
+          transition: all var(--transition-smooth);
+        }
+        .auth-nav .logo:hover {
+          color: var(--accent-primary);
+        }
+        .auth-nav .logo .logo-icon {
+          width: 36px;
+          height: 36px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, var(--blue-500) 0%, var(--blue-600) 100%);
+          border-radius: var(--radius-md);
+          color: white;
+          margin-right: var(--spacing-3);
+          transition: all var(--transition-smooth);
+          box-shadow: var(--shadow-sm);
+        }
+        .auth-nav .logo:hover .logo-icon {
+          transform: scale(1.05) rotate(2deg);
+          box-shadow: var(--shadow-blue);
         }
       </style>
       <nav class="auth-nav">
-        <a href="{{ url_for('login') }}" class="logo">Job Tracker</a>
-        <div style="display: flex; gap: var(--spacing-md);">
+        <a href="{{ url_for('login') }}" class="logo">
+          <div class="logo-icon" style="display: inline-flex; align-items: center; margin-right: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 24px; height: 24px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <span>Job Tracker</span>
+        </a>
+        <div style="display: flex; gap: var(--spacing-3);">
           <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
           <a href="{{ url_for('register') }}" class="btn btn-primary">Register</a>
         </div>

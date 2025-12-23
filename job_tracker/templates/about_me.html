@@ -6,193 +6,611 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">About Me</h1>
-      <p class="page-subtitle">Your profile information for easy copy-paste into job applications</p>
+      <p class="page-subtitle">Your complete professional profile</p>
     </div>
-    <a href="{{ url_for('edit_profile') }}" class="btn btn-primary">
-      <svg style="width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-      </svg>
-      Edit Profile
-    </a>
+    <div style="display: flex; gap: var(--spacing-md);">
+      <a href="{{ url_for('upload_cv') }}" class="btn btn-secondary">
+        <svg style="width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        Upload CV
+      </a>
+      <a href="{{ url_for('edit_profile') }}" class="btn btn-primary">
+        <svg style="width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+        Edit Profile
+      </a>
+    </div>
   </div>
 
   {% if error_message %}
     <div class="alert alert-danger" role="alert">{{ error_message }}</div>
   {% endif %}
 
-  {% if profile %}
-    <div style="display: grid; gap: var(--spacing-lg);">
-      {% if profile.name %}
-        <div class="about-section" style="animation-delay: 0s;">
-          <div class="about-section-header">
-            <h3 class="section-title">Name</h3>
-            <button class="copy-btn" onclick="copyToClipboard('name-content')" title="Copy to clipboard">
-              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy
-            </button>
+  {% if profile and profile.profile_data %}
+    {% set data = profile.profile_data %}
+    <div style="display: grid; gap: var(--spacing-xl);">
+      
+      <!-- Identity Card -->
+      {% if data.identity %}
+        <section class="profile-section">
+          <div class="section-header">
+            <h2 class="section-title-large">Identity</h2>
           </div>
-          <div id="name-content" class="section-content">{{ profile.name }}</div>
-        </div>
-      {% endif %}
-
-      {% if profile.age or profile.looking_for %}
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--spacing-lg);">
-          {% if profile.age %}
-            <div class="about-section" style="animation-delay: 0.1s;">
-              <div class="about-section-header">
-                <h3 class="section-title">Age</h3>
-                <button class="copy-btn" onclick="copyToClipboard('age-content')" title="Copy to clipboard">
-                  <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Copy
-                </button>
+          <div class="identity-card">
+            {% if data.identity.name %}
+              <div class="identity-item">
+                <span class="identity-label">Name</span>
+                <span class="identity-value">{{ data.identity.name }}</span>
               </div>
-              <div id="age-content" class="section-content">{{ profile.age }}</div>
-            </div>
-          {% endif %}
-
-          {% if profile.looking_for %}
-            <div class="about-section" style="animation-delay: 0.1s;">
-              <div class="about-section-header">
-                <h3 class="section-title">Looking For</h3>
-                <button class="copy-btn" onclick="copyToClipboard('looking-content')" title="Copy to clipboard">
-                  <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Copy
-                </button>
+            {% endif %}
+            {% if data.identity.email %}
+              <div class="identity-item">
+                <span class="identity-label">Email</span>
+                <a href="mailto:{{ data.identity.email }}" class="identity-value identity-link">{{ data.identity.email }}</a>
               </div>
-              <div id="looking-content" class="section-content">{{ profile.looking_for }}</div>
-            </div>
-          {% endif %}
-        </div>
+            {% endif %}
+            {% if data.identity.phone %}
+              <div class="identity-item">
+                <span class="identity-label">Phone</span>
+                <a href="tel:{{ data.identity.phone }}" class="identity-value identity-link">{{ data.identity.phone }}</a>
+              </div>
+            {% endif %}
+            {% if data.identity.location %}
+              <div class="identity-item">
+                <span class="identity-label">Location</span>
+                <span class="identity-value">{{ data.identity.location }}</span>
+              </div>
+            {% endif %}
+            {% if data.identity.links and data.identity.links|length > 0 %}
+              <div class="identity-item">
+                <span class="identity-label">Links</span>
+                <div class="identity-links">
+                  {% for link in data.identity.links %}
+                    <a href="{{ link }}" target="_blank" rel="noopener" class="identity-link-badge">{{ link }}</a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </section>
       {% endif %}
 
-      {% if profile.bio %}
-        <div class="about-section" style="animation-delay: 0.2s;">
-          <div class="about-section-header">
-            <h3 class="section-title">Bio</h3>
-            <button class="copy-btn" onclick="copyToClipboard('bio-content')" title="Copy to clipboard">
+      <!-- Career Intent -->
+      {% if data.career_intent %}
+        <section class="profile-section">
+          <div class="section-header">
+            <h2 class="section-title-large">Career Intent</h2>
+          </div>
+          <div class="career-intent-card">
+            {% if data.career_intent.current_status %}
+              <div class="career-item">
+                <span class="career-label">Current Status</span>
+                <span class="career-value">{{ data.career_intent.current_status }}</span>
+              </div>
+            {% endif %}
+            {% if data.career_intent.target_roles and data.career_intent.target_roles|length > 0 %}
+              <div class="career-item">
+                <span class="career-label">Target Roles</span>
+                <div class="career-tags">
+                  {% for role in data.career_intent.target_roles %}
+                    <span class="career-tag">{{ role }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+            {% if data.career_intent.industry %}
+              <div class="career-item">
+                <span class="career-label">Industry</span>
+                <span class="career-value">{{ data.career_intent.industry }}</span>
+              </div>
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
+
+      <!-- Professional Summary -->
+      {% if data.professional_summary %}
+        <section class="profile-section">
+          <div class="section-header">
+            <h2 class="section-title-large">Professional Summary</h2>
+            <button class="copy-btn" onclick="copyToClipboard('summary-content')" title="Copy">
               <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
               Copy
             </button>
           </div>
-          <div id="bio-content" class="section-content">{{ profile.bio }}</div>
-        </div>
+          <div id="summary-content" class="summary-content">{{ data.professional_summary }}</div>
+        </section>
       {% endif %}
 
-      {% if profile.qualification %}
-        <div class="about-section" style="animation-delay: 0.3s;">
-          <div class="about-section-header">
-            <h3 class="section-title">Qualification</h3>
-            <button class="copy-btn" onclick="copyToClipboard('qualification-content')" title="Copy to clipboard">
-              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy
-            </button>
+      <!-- Skills -->
+      {% if data.skills %}
+        <section class="profile-section">
+          <div class="section-header">
+            <h2 class="section-title-large">Skills</h2>
           </div>
-          <div id="qualification-content" class="section-content">{{ profile.qualification }}</div>
-        </div>
+          <div class="skills-container">
+            {% if data.skills.technical and data.skills.technical|length > 0 %}
+              <div class="skills-category">
+                <h3 class="skills-category-title">Technical Skills</h3>
+                <div class="skills-tags">
+                  {% for skill in data.skills.technical %}
+                    <span class="skill-tag skill-tag-technical">{{ skill }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+            {% if data.skills.tools and data.skills.tools|length > 0 %}
+              <div class="skills-category">
+                <h3 class="skills-category-title">Tools & Frameworks</h3>
+                <div class="skills-tags">
+                  {% for tool in data.skills.tools %}
+                    <span class="skill-tag skill-tag-tool">{{ tool }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+            {% if data.skills.soft and data.skills.soft|length > 0 %}
+              <div class="skills-category">
+                <h3 class="skills-category-title">Soft Skills</h3>
+                <div class="skills-tags">
+                  {% for skill in data.skills.soft %}
+                    <span class="skill-tag skill-tag-soft">{{ skill }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </section>
       {% endif %}
 
-      {% if profile.experience %}
-        <div class="about-section" style="animation-delay: 0.4s;">
-          <div class="about-section-header">
-            <h3 class="section-title">Experience</h3>
-            <button class="copy-btn" onclick="copyToClipboard('experience-content')" title="Copy to clipboard">
-              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy
-            </button>
+      <!-- Experience Timeline -->
+      {% if data.experience and data.experience|length > 0 %}
+        <section class="profile-section">
+          <div class="section-header">
+            <h2 class="section-title-large">Experience</h2>
           </div>
-          <div id="experience-content" class="section-content">{{ profile.experience }}</div>
-        </div>
+          <div class="experience-timeline">
+            {% for exp in data.experience %}
+              <div class="experience-item">
+                <div class="experience-header">
+                  <div>
+                    <h3 class="experience-role">{{ exp.role }}</h3>
+                    <p class="experience-company">{{ exp.company }}</p>
+                  </div>
+                  {% if exp.duration %}
+                    <span class="experience-duration">{{ exp.duration }}</span>
+                  {% endif %}
+                </div>
+                {% if exp.responsibilities and exp.responsibilities|length > 0 %}
+                  <ul class="experience-responsibilities">
+                    {% for resp in exp.responsibilities %}
+                      <li>{{ resp }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </section>
       {% endif %}
 
-      {% if profile.projects %}
-        <div class="about-section" style="animation-delay: 0.5s;">
-          <div class="about-section-header">
-            <h3 class="section-title">Projects</h3>
-            <button class="copy-btn" onclick="copyToClipboard('projects-content')" title="Copy to clipboard">
-              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy
-            </button>
+      <!-- Education -->
+      {% if data.education and data.education|length > 0 %}
+        <section class="profile-section">
+          <div class="section-header">
+            <h2 class="section-title-large">Education</h2>
           </div>
-          <div id="projects-content" class="section-content">{{ profile.projects }}</div>
-        </div>
+          <div class="education-list">
+            {% for edu in data.education %}
+              <div class="education-item">
+                <h3 class="education-degree">{{ edu.degree }}</h3>
+                <p class="education-institution">{{ edu.institution }}</p>
+                <div class="education-meta">
+                  {% if edu.year %}
+                    <span class="education-year">{{ edu.year }}</span>
+                  {% endif %}
+                  {% if edu.specialization %}
+                    <span class="education-specialization">{{ edu.specialization }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
       {% endif %}
 
-      {% if profile.skills %}
-        <div class="about-section" style="animation-delay: 0.6s;">
-          <div class="about-section-header">
-            <h3 class="section-title">Skills</h3>
-            <button class="copy-btn" onclick="copyToClipboard('skills-content')" title="Copy to clipboard">
-              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy
-            </button>
+      <!-- Projects -->
+      {% if data.projects and data.projects|length > 0 %}
+        <section class="profile-section">
+          <div class="section-header">
+            <h2 class="section-title-large">Projects</h2>
           </div>
-          <div id="skills-content" class="section-content">{{ profile.skills }}</div>
-        </div>
+          <div class="projects-grid">
+            {% for project in data.projects %}
+              <div class="project-card">
+                <h3 class="project-name">{{ project.name }}</h3>
+                {% if project.tech_stack %}
+                  <p class="project-tech">{{ project.tech_stack }}</p>
+                {% endif %}
+                {% if project.impact %}
+                  <p class="project-impact">{{ project.impact }}</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </section>
       {% endif %}
 
-      {% if profile.achievements %}
-        <div class="about-section" style="animation-delay: 0.7s;">
-          <div class="about-section-header">
-            <h3 class="section-title">Achievements</h3>
-            <button class="copy-btn" onclick="copyToClipboard('achievements-content')" title="Copy to clipboard">
-              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy
-            </button>
+      <!-- Achievements -->
+      {% if data.achievements and data.achievements|length > 0 %}
+        <section class="profile-section">
+          <div class="section-header">
+            <h2 class="section-title-large">Achievements & Certifications</h2>
           </div>
-          <div id="achievements-content" class="section-content">{{ profile.achievements }}</div>
-        </div>
+          <ul class="achievements-list">
+            {% for achievement in data.achievements %}
+              <li class="achievement-item">{{ achievement }}</li>
+            {% endfor %}
+          </ul>
+        </section>
       {% endif %}
 
-      {% if profile.portfolio_links %}
-        <div class="about-section" style="animation-delay: 0.8s;">
-          <div class="about-section-header">
-            <h3 class="section-title">Portfolio Links</h3>
-            <button class="copy-btn" onclick="copyToClipboard('portfolio-content')" title="Copy to clipboard">
-              <svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy
-            </button>
-          </div>
-          <div id="portfolio-content" class="section-content">{{ profile.portfolio_links }}</div>
-        </div>
-      {% endif %}
+    </div>
+  {% elif profile %}
+    <!-- Fallback to legacy profile display -->
+    <div class="card empty-state">
+      <div class="empty-state-icon">📄</div>
+      <h3 style="margin: 0 0 var(--spacing-sm) 0; color: var(--text-primary);">Upload your CV</h3>
+      <p style="margin: 0 0 var(--spacing-lg) 0; color: var(--text-secondary);">
+        Upload your CV to automatically build your complete profile.
+      </p>
+      <a href="{{ url_for('upload_cv') }}" class="btn btn-primary">Upload CV</a>
     </div>
   {% else %}
     <div class="card empty-state">
       <div class="empty-state-icon">👤</div>
       <h3 style="margin: 0 0 var(--spacing-sm) 0; color: var(--text-primary);">No profile yet</h3>
       <p style="margin: 0 0 var(--spacing-lg) 0; color: var(--text-secondary);">
-        Create your profile to easily copy-paste information into job applications.
+        Upload your CV to automatically build your complete professional profile.
       </p>
-      <a href="{{ url_for('edit_profile') }}" class="btn btn-primary">Create Profile</a>
+      <a href="{{ url_for('upload_cv') }}" class="btn btn-primary">Upload CV</a>
     </div>
   {% endif %}
+
+  <style>
+    .profile-section {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-light);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .section-title-large {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .identity-card {
+      display: grid;
+      gap: var(--spacing-md);
+    }
+
+    .identity-item {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .identity-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .identity-value {
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+
+    .identity-link {
+      color: var(--blue-600);
+      text-decoration: none;
+    }
+
+    .identity-link:hover {
+      text-decoration: underline;
+    }
+
+    .identity-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-sm);
+    }
+
+    .identity-link-badge {
+      display: inline-block;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: var(--blue-50);
+      color: var(--blue-700);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .identity-link-badge:hover {
+      background: var(--blue-100);
+    }
+
+    .career-intent-card {
+      display: grid;
+      gap: var(--spacing-md);
+    }
+
+    .career-item {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .career-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .career-value {
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+
+    .career-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-sm);
+    }
+
+    .career-tag {
+      display: inline-block;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: var(--blue-50);
+      color: var(--blue-700);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .summary-content {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+    }
+
+    .skills-container {
+      display: grid;
+      gap: var(--spacing-lg);
+    }
+
+    .skills-category {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+
+    .skills-category-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .skills-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-sm);
+    }
+
+    .skill-tag {
+      display: inline-block;
+      padding: var(--spacing-xs) var(--spacing-md);
+      border-radius: var(--radius-full);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .skill-tag-technical {
+      background: var(--blue-50);
+      color: var(--blue-700);
+    }
+
+    .skill-tag-tool {
+      background: var(--green-50);
+      color: var(--green-700);
+    }
+
+    .skill-tag-soft {
+      background: var(--purple-50);
+      color: var(--purple-700);
+    }
+
+    .experience-timeline {
+      display: grid;
+      gap: var(--spacing-lg);
+    }
+
+    .experience-item {
+      padding-left: var(--spacing-lg);
+      border-left: 2px solid var(--border-light);
+      position: relative;
+    }
+
+    .experience-item::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 0;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--blue-600);
+    }
+
+    .experience-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .experience-role {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 var(--spacing-xs) 0;
+    }
+
+    .experience-company {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .experience-duration {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .experience-responsibilities {
+      margin: var(--spacing-sm) 0 0 0;
+      padding-left: var(--spacing-lg);
+      color: var(--text-primary);
+    }
+
+    .experience-responsibilities li {
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .education-list {
+      display: grid;
+      gap: var(--spacing-md);
+    }
+
+    .education-item {
+      padding: var(--spacing-md);
+      background: var(--gray-50);
+      border-radius: var(--radius-md);
+    }
+
+    .education-degree {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 var(--spacing-xs) 0;
+    }
+
+    .education-institution {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin: 0 0 var(--spacing-xs) 0;
+    }
+
+    .education-meta {
+      display: flex;
+      gap: var(--spacing-md);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--spacing-md);
+    }
+
+    .project-card {
+      padding: var(--spacing-md);
+      background: var(--gray-50);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+    }
+
+    .project-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 var(--spacing-xs) 0;
+    }
+
+    .project-tech {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin: 0 0 var(--spacing-xs) 0;
+    }
+
+    .project-impact {
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .achievements-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: var(--spacing-sm);
+    }
+
+    .achievement-item {
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--gray-50);
+      border-radius: var(--radius-md);
+      border-left: 3px solid var(--blue-600);
+    }
+
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: transparent;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: var(--gray-50);
+      color: var(--text-primary);
+    }
+  </style>
 
   <script>
     function copyToClipboard(elementId) {
       const element = document.getElementById(elementId);
       const text = element.textContent || element.innerText;
       
-      // Create temporary textarea
       const textarea = document.createElement('textarea');
       textarea.value = text;
       textarea.style.position = 'fixed';
@@ -202,16 +620,15 @@
       
       try {
         document.execCommand('copy');
-        // Visual feedback
         const btn = event.target.closest('.copy-btn');
-        const originalText = btn.innerHTML;
+        const originalHTML = btn.innerHTML;
         btn.innerHTML = '<svg style="width: 14px; height: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Copied!';
         btn.style.background = 'var(--accent-success)';
         btn.style.color = 'white';
         btn.style.borderColor = 'var(--accent-success)';
         
         setTimeout(() => {
-          btn.innerHTML = originalText;
+          btn.innerHTML = originalHTML;
           btn.style.background = '';
           btn.style.color = '';
           btn.style.borderColor = '';

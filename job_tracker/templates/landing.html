@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Job Tracker - Organize Your Career Journey</title>
+    
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <style>
+      /* Landing Page Specific Styles */
+      .landing-page {
+        min-height: 100vh;
+        background: linear-gradient(180deg, #ffffff 0%, #f5f7fa 100%);
+      }
+
+      /* Navigation */
+      .landing-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border-color);
+        padding: var(--spacing-5) var(--spacing-8);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 1000;
+        box-shadow: var(--shadow-xs);
+        transition: all var(--transition-smooth);
+      }
+
+      .landing-nav.scrolled {
+        box-shadow: var(--shadow-md);
+      }
+
+      .landing-nav .logo {
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--text-primary);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-3);
+        transition: all var(--transition-smooth);
+      }
+
+      .landing-nav .logo:hover {
+        color: var(--accent-primary);
+      }
+
+      .landing-nav .logo-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--blue-500) 0%, var(--blue-600) 100%);
+        border-radius: var(--radius-md);
+        color: white;
+        transition: all var(--transition-smooth);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .landing-nav .logo:hover .logo-icon {
+        transform: scale(1.05) rotate(2deg);
+        box-shadow: var(--shadow-blue);
+      }
+
+      .landing-nav .logo-icon svg {
+        width: 24px;
+        height: 24px;
+        stroke-width: 2.5;
+      }
+
+      .landing-nav-actions {
+        display: flex;
+        gap: var(--spacing-3);
+        align-items: center;
+      }
+
+      /* Hero Section */
+      .hero {
+        padding: calc(var(--spacing-16) + 80px) var(--spacing-8) var(--spacing-16);
+        text-align: center;
+        max-width: 1200px;
+        margin: 0 auto;
+        animation: fadeInUp 0.8s ease;
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-2);
+        padding: var(--spacing-2) var(--spacing-4);
+        background: var(--blue-50);
+        color: var(--blue-700);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        margin-bottom: var(--spacing-6);
+        animation: slideDown 0.6s ease 0.2s backwards;
+      }
+
+      .hero-title {
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: var(--font-weight-bold);
+        color: var(--text-primary);
+        margin: 0 0 var(--spacing-5) 0;
+        line-height: var(--line-height-tight);
+        letter-spacing: -0.03em;
+        animation: fadeInUp 0.8s ease 0.2s backwards;
+      }
+
+      .hero-title .gradient-text {
+        background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-500) 50%, var(--accent-secondary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .hero-subtitle {
+        font-size: clamp(1.125rem, 2vw, 1.375rem);
+        color: var(--text-secondary);
+        margin: 0 0 var(--spacing-8) 0;
+        line-height: var(--line-height-relaxed);
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+        animation: fadeInUp 0.8s ease 0.4s backwards;
+      }
+
+      .hero-cta {
+        display: flex;
+        gap: var(--spacing-4);
+        justify-content: center;
+        flex-wrap: wrap;
+        animation: fadeInUp 0.8s ease 0.6s backwards;
+      }
+
+      .hero-illustration {
+        margin-top: var(--spacing-12);
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+        animation: fadeInUp 0.8s ease 0.8s backwards;
+      }
+
+      .hero-illustration svg {
+        width: 100%;
+        height: auto;
+        filter: drop-shadow(0 20px 40px rgba(37, 99, 235, 0.1));
+      }
+
+      /* Features Section */
+      .features {
+        padding: var(--spacing-16) var(--spacing-8);
+        background: var(--bg-secondary);
+      }
+
+      .section-header {
+        text-align: center;
+        max-width: 800px;
+        margin: 0 auto var(--spacing-12);
+      }
+
+      .section-title {
+        font-size: clamp(2rem, 4vw, 2.75rem);
+        font-weight: var(--font-weight-bold);
+        color: var(--text-primary);
+        margin: 0 0 var(--spacing-4) 0;
+        letter-spacing: -0.02em;
+      }
+
+      .section-subtitle {
+        font-size: var(--font-size-lg);
+        color: var(--text-secondary);
+        line-height: var(--line-height-relaxed);
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: var(--spacing-8);
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .feature-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-8);
+        text-align: center;
+        transition: all var(--transition-smooth);
+        animation: slideUp 0.6s ease backwards;
+      }
+
+      .feature-card:nth-child(1) { animation-delay: 0.1s; }
+      .feature-card:nth-child(2) { animation-delay: 0.2s; }
+      .feature-card:nth-child(3) { animation-delay: 0.3s; }
+      .feature-card:nth-child(4) { animation-delay: 0.4s; }
+
+      .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--blue-200);
+      }
+
+      .feature-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto var(--spacing-5);
+        background: linear-gradient(135deg, var(--blue-50) 0%, var(--blue-100) 100%);
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-smooth);
+      }
+
+      .feature-card:hover .feature-icon {
+        transform: scale(1.1) rotate(5deg);
+        background: linear-gradient(135deg, var(--blue-100) 0%, var(--blue-200) 100%);
+      }
+
+      .feature-icon svg {
+        width: 32px;
+        height: 32px;
+        color: var(--blue-600);
+      }
+
+      .feature-title {
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary);
+        margin: 0 0 var(--spacing-3) 0;
+      }
+
+      .feature-description {
+        font-size: var(--font-size-base);
+        color: var(--text-secondary);
+        line-height: var(--line-height-relaxed);
+        margin: 0;
+      }
+
+      /* How It Works Section */
+      .how-it-works {
+        padding: var(--spacing-16) var(--spacing-8);
+        background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      }
+
+      .steps-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        position: relative;
+      }
+
+      .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: var(--spacing-8);
+        position: relative;
+      }
+
+      .step-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-8);
+        text-align: center;
+        position: relative;
+        transition: all var(--transition-smooth);
+        animation: slideUp 0.6s ease backwards;
+      }
+
+      .step-card:nth-child(1) { animation-delay: 0.1s; }
+      .step-card:nth-child(2) { animation-delay: 0.2s; }
+      .step-card:nth-child(3) { animation-delay: 0.3s; }
+      .step-card:nth-child(4) { animation-delay: 0.4s; }
+
+      .step-card:hover {
+        transform: translateY(-6px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--blue-200);
+      }
+
+      .step-number {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto var(--spacing-5);
+        background: linear-gradient(135deg, var(--blue-500) 0%, var(--blue-600) 100%);
+        color: white;
+        border-radius: var(--radius-full);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-bold);
+        box-shadow: var(--shadow-sm);
+        transition: all var(--transition-smooth);
+      }
+
+      .step-card:hover .step-number {
+        transform: scale(1.1);
+        box-shadow: var(--shadow-blue);
+      }
+
+      .step-title {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary);
+        margin: 0 0 var(--spacing-3) 0;
+      }
+
+      .step-description {
+        font-size: var(--font-size-base);
+        color: var(--text-secondary);
+        line-height: var(--line-height-relaxed);
+        margin: 0;
+      }
+
+      /* CTA Section */
+      .cta-section {
+        padding: var(--spacing-16) var(--spacing-8);
+        background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
+        color: white;
+        text-align: center;
+      }
+
+      .cta-content {
+        max-width: 700px;
+        margin: 0 auto;
+      }
+
+      .cta-title {
+        font-size: clamp(2rem, 4vw, 2.75rem);
+        font-weight: var(--font-weight-bold);
+        margin: 0 0 var(--spacing-5) 0;
+        letter-spacing: -0.02em;
+      }
+
+      .cta-subtitle {
+        font-size: var(--font-size-lg);
+        margin: 0 0 var(--spacing-8) 0;
+        opacity: 0.95;
+        line-height: var(--line-height-relaxed);
+      }
+
+      .cta-buttons {
+        display: flex;
+        gap: var(--spacing-4);
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .btn-white {
+        background: white;
+        color: var(--blue-600);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .btn-white:hover {
+        background: var(--grey-50);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      .btn-outline-white {
+        background: transparent;
+        color: white;
+        border: 2px solid white;
+      }
+
+      .btn-outline-white:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: white;
+      }
+
+      /* Footer */
+      .landing-footer {
+        padding: var(--spacing-8) var(--spacing-8);
+        background: var(--bg-secondary);
+        border-top: 1px solid var(--border-color);
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: var(--font-size-sm);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .hero {
+          padding: calc(var(--spacing-12) + 80px) var(--spacing-5) var(--spacing-12);
+        }
+
+        .hero-cta {
+          flex-direction: column;
+        }
+
+        .hero-cta .btn {
+          width: 100%;
+        }
+
+        .features,
+        .how-it-works,
+        .cta-section {
+          padding: var(--spacing-12) var(--spacing-5);
+        }
+
+        .features-grid,
+        .steps-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .landing-nav {
+          padding: var(--spacing-4) var(--spacing-5);
+        }
+
+        .landing-nav-actions {
+          gap: var(--spacing-2);
+        }
+      }
+
+      /* Scroll Animations */
+      @media (prefers-reduced-motion: no-preference) {
+        .fade-in-on-scroll {
+          opacity: 0;
+          transform: translateY(30px);
+          transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in-on-scroll.visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="landing-nav" id="landingNav">
+      <a href="{{ url_for('landing') }}" class="logo">
+        <div class="logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <span>Job Tracker</span>
+      </a>
+      <div class="landing-nav-actions">
+        <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
+        <a href="{{ url_for('register') }}" class="btn btn-primary">Get Started</a>
+      </div>
+    </nav>
+
+    <div class="landing-page">
+      <!-- Hero Section -->
+      <section class="hero">
+        <div class="hero-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 13l4 4L19 7"></path>
+          </svg>
+          Trusted by job seekers worldwide
+        </div>
+        <h1 class="hero-title">
+          Organize Your Career Journey<br>
+          <span class="gradient-text">One Application at a Time</span>
+        </h1>
+        <p class="hero-subtitle">
+          Track job applications, manage interviews, and stay organized throughout your job search. 
+          Everything you need to land your dream job, all in one place.
+        </p>
+        <div class="hero-cta">
+          <a href="{{ url_for('register') }}" class="btn btn-primary" style="font-size: 1.125rem; padding: var(--spacing-4) var(--spacing-8);">
+            Get Started Free
+          </a>
+          <a href="#features" class="btn btn-secondary" style="font-size: 1.125rem; padding: var(--spacing-4) var(--spacing-8);">
+            Learn More
+          </a>
+        </div>
+        <div class="hero-illustration">
+          <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+            <!-- Career Growth Illustration -->
+            <defs>
+              <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <!-- Person -->
+            <circle cx="400" cy="300" r="80" fill="url(#grad1)" opacity="0.1"/>
+            <circle cx="400" cy="280" r="50" fill="url(#grad1)"/>
+            <rect x="375" y="330" width="50" height="80" rx="25" fill="url(#grad1)"/>
+            <!-- Briefcase -->
+            <rect x="420" y="380" width="60" height="40" rx="5" fill="url(#grad1)"/>
+            <rect x="425" y="385" width="50" height="8" rx="2" fill="white" opacity="0.8"/>
+            <!-- Chart/Progress -->
+            <path d="M 200 450 L 250 400 L 300 420 L 350 350 L 400 380 L 450 300 L 500 320 L 550 280 L 600 300" 
+                  stroke="url(#grad1)" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- Checkmarks -->
+            <circle cx="250" cy="200" r="30" fill="#10b981" opacity="0.2"/>
+            <path d="M 240 200 L 248 208 L 260 192" stroke="#10b981" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="550" cy="150" r="30" fill="#10b981" opacity="0.2"/>
+            <path d="M 540 150 L 548 158 L 560 142" stroke="#10b981" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Features Section -->
+      <section class="features" id="features">
+        <div class="section-header fade-in-on-scroll">
+          <h2 class="section-title">Everything You Need to Succeed</h2>
+          <p class="section-subtitle">
+            Powerful features designed to help you stay organized and land your dream job
+          </p>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card fade-in-on-scroll">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <h3 class="feature-title">Job Tracking</h3>
+            <p class="feature-description">
+              Keep track of all your job applications in one organized dashboard. 
+              Never lose track of where you've applied.
+            </p>
+          </div>
+          <div class="feature-card fade-in-on-scroll">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 class="feature-title">Interview Management</h3>
+            <p class="feature-description">
+              Schedule and manage all your interviews with ease. Get reminders 
+              and track your interview performance.
+            </p>
+          </div>
+          <div class="feature-card fade-in-on-scroll">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 class="feature-title">Status Updates</h3>
+            <p class="feature-description">
+              Track your application status from Applied to Offer. 
+              Stay on top of your job search progress.
+            </p>
+          </div>
+          <div class="feature-card fade-in-on-scroll">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 class="feature-title">Smart Reminders</h3>
+            <p class="feature-description">
+              Never miss a follow-up. Get intelligent reminders for applications 
+              that need your attention.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- How It Works Section -->
+      <section class="how-it-works">
+        <div class="section-header fade-in-on-scroll">
+          <h2 class="section-title">How It Works</h2>
+          <p class="section-subtitle">
+            Get started in minutes and take control of your job search
+          </p>
+        </div>
+        <div class="steps-container">
+          <div class="steps-grid">
+            <div class="step-card fade-in-on-scroll">
+              <div class="step-number">1</div>
+              <h3 class="step-title">Sign Up Free</h3>
+              <p class="step-description">
+                Create your account in seconds. No credit card required, 
+                no hidden fees.
+              </p>
+            </div>
+            <div class="step-card fade-in-on-scroll">
+              <div class="step-number">2</div>
+              <h3 class="step-title">Add Your Jobs</h3>
+              <p class="step-description">
+                Start tracking your applications. Add company details, 
+                job links, and application dates.
+              </p>
+            </div>
+            <div class="step-card fade-in-on-scroll">
+              <div class="step-number">3</div>
+              <h3 class="step-title">Manage Interviews</h3>
+              <p class="step-description">
+                Schedule interviews, set reminders, and track your 
+                interview performance.
+              </p>
+            </div>
+            <div class="step-card fade-in-on-scroll">
+              <div class="step-number">4</div>
+              <h3 class="step-title">Land Your Dream Job</h3>
+              <p class="step-description">
+                Stay organized and focused. Get the job you deserve 
+                with better organization.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA Section -->
+      <section class="cta-section fade-in-on-scroll">
+        <div class="cta-content">
+          <h2 class="cta-title">Ready to Transform Your Job Search?</h2>
+          <p class="cta-subtitle">
+            Join thousands of job seekers who are already organized and landing their dream jobs.
+          </p>
+          <div class="cta-buttons">
+            <a href="{{ url_for('register') }}" class="btn btn-white" style="font-size: 1.125rem; padding: var(--spacing-4) var(--spacing-8);">
+              Start Free Today
+            </a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline-white" style="font-size: 1.125rem; padding: var(--spacing-4) var(--spacing-8);">
+              Sign In
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="landing-footer">
+        <p>&copy; 2025 Job Tracker. All rights reserved.</p>
+      </footer>
+    </div>
+
+    <script>
+      // Navbar scroll effect
+      window.addEventListener('scroll', function() {
+        const nav = document.getElementById('landingNav');
+        if (window.scrollY > 50) {
+          nav.classList.add('scrolled');
+        } else {
+          nav.classList.remove('scrolled');
+        }
+      });
+
+      // Smooth scroll for anchor links
+      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute('href'));
+          if (target) {
+            target.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        });
+      });
+
+      // Fade in on scroll animation
+      const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      };
+
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, observerOptions);
+
+      document.querySelectorAll('.fade-in-on-scroll').forEach(el => {
+        observer.observe(el);
+      });
+    </script>
+  </body>
+</html>
+
