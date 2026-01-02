@@ -649,6 +649,22 @@ body {
   box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.2);
 }
 
+.btn-danger {
+  background: var(--accent-danger);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:active {
+  transform: translateY(0);
+}
+
 .btn-sm {
   padding: var(--spacing-2) var(--spacing-4);
   font-size: var(--font-size-xs);

@@ -8,6 +8,14 @@ import os
 import re
 from typing import Dict, Any, Optional
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not installed, continue without it
+    pass
+
 # Google Gemini API imports
 try:
     import google.generativeai as genai
@@ -58,7 +66,7 @@ def extract_cv_data_deep(cv_text: str) -> Dict[str, Any]:
         return _get_empty_profile_structure()
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('models/gemini-1.5-pro')
         
         # Limit text to 8000 chars for API
         cv_text_limited = cv_text[:8000] if len(cv_text) > 8000 else cv_text
@@ -78,74 +86,69 @@ Extract ALL of the following, even if some sections are missing:
    - Location (city/country if present)
    - LinkedIn, GitHub, Portfolio links (if present)
 
-2. CAREER INTENT:
-   - Current role/status (e.g., "Software Engineer", "Student", "Fresher")
-   - Target roles (array, e.g., ["Software Engineer", "Frontend Developer"])
-   - Industry preference (if inferable, else null)
-
-3. PROFESSIONAL SUMMARY:
+2. PROFESSIONAL SUMMARY:
    - Rewrite into clean 3-5 line recruiter-friendly bio
    - Use ONLY CV content
    - Do NOT hallucinate
 
-4. SKILLS (categorized):
+3. SKILLS (categorized):
    - Technical Skills (programming languages, technologies)
    - Tools & Frameworks
    - Soft Skills (ONLY if explicitly mentioned in CV)
 
-5. EXPERIENCE (array of objects):
+4. EXPERIENCE (array of objects):
    - Company name
    - Role/title
    - Duration (if present)
    - Key responsibilities (bulleted, concise)
 
-6. EDUCATION (array of objects):
+5. EDUCATION (array of objects):
    - Degree
    - Institution
    - Year (if present)
    - Specialization (if present)
 
-7. PROJECTS (array of objects):
+6. PROJECTS (array of objects):
    - Project name
    - Tech stack
    - One-line impact summary
 
-8. ACHIEVEMENTS/CERTIFICATIONS:
+7. ACHIEVEMENTS/CERTIFICATIONS:
    - Only if mentioned in CV
 
 CRITICAL RULES:
 1. Return ONLY valid JSON, no markdown, no code blocks
-2. If data is missing → use null or empty arrays []
-3. Do NOT invent or hallucinate any values
-4. Do NOT add filler text
-5. Extract everything that exists, nothing that doesn't
-6. Keep all text professional and recruiter-friendly
+2. If a value is NOT FOUND in the CV, use null (NOT empty strings "" or empty arrays [])
+3. Only include actual data found in the CV
+4. Do NOT invent or hallucinate any values
+5. Do NOT add filler text
+6. Extract everything that exists, nothing that doesn't
+7. Keep all text professional and recruiter-friendly
+8. For arrays: use null if no items found, otherwise return array with items
+9. For strings: use null if not found, otherwise return the actual string value
 
-OUTPUT FORMAT (JSON only):
+OUTPUT FORMAT (JSON only - STRICT STRUCTURE):
 {{
   "identity": {{
-    "name": "",
-    "email": "",
-    "phone": "",
-    "location": "",
-    "links": []
+    "name": null,
+    "email": null,
+    "phone": null,
+    "location": null,
+    "links": null
   }},
-  "career_intent": {{
-    "current_status": "",
-    "target_roles": [],
-    "industry": ""
-  }},
-  "professional_summary": "",
+  "professional_summary": null,
   "skills": {{
-    "technical": [],
-    "tools": [],
-    "soft": []
+    "technical": null,
+    "tools": null,
+    "soft": null
   }},
-  "experience": [],
-  "education": [],
-  "projects": [],
-  "achievements": []
-}}"""
+  "experience": null,
+  "education": null,
+  "projects": null,
+  "achievements": null
+}}
+
+IMPORTANT: Replace null with actual values ONLY if found in the CV. If not found, keep as null."""
         
         response = model.generate_content(
             prompt,
@@ -155,8 +158,16 @@ OUTPUT FORMAT (JSON only):
             )
         )
         
-        response_text = response.text.strip()
+        # Log raw response before any processing
+        raw_response_text = response.text if hasattr(response, 'text') else str(response)
+        print(f"[INFO] Raw Gemini response (DEEP_CV_EXTRACTION):")
+        print(f"[RAW_RESPONSE] {raw_response_text}")
+        print(f"[INFO] Raw response length: {len(raw_response_text)} chars")
+        
+        response_text = raw_response_text.strip()
         log_prompt_and_response(prompt, response_text, "DEEP_CV_EXTRACTION")
+        
+        print(f"[INFO] Processed response length: {len(response_text)} chars")
         
         # Remove markdown code blocks if present
         if response_text.startswith('```'):
@@ -172,15 +183,62 @@ OUTPUT FORMAT (JSON only):
         # Parse JSON
         try:
             extracted_data = json.loads(response_text)
-        except json.JSONDecodeError:
-            json_match = re.search(r'\{[^{}]*\}', response_text, re.DOTALL)
+            print(f"[INFO] Successfully parsed JSON from Gemini response")
+        except json.JSONDecodeError as e:
+            print(f"[WARNING] JSON parse error: {e}")
+            print(f"[DEBUG] Response text (first 500 chars): {response_text[:500]}")
+            # Try to extract JSON from the response
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
             if json_match:
-                extracted_data = json.loads(json_match.group(0))
+                try:
+                    extracted_data = json.loads(json_match.group(0))
+                    print(f"[INFO] Successfully extracted JSON using regex")
+                except json.JSONDecodeError:
+                    raise ValueError(f"Could not parse JSON from Gemini response: {e}")
             else:
-                raise ValueError("Could not parse JSON from Gemini response")
+                raise ValueError(f"Could not find JSON in Gemini response: {e}")
+        
+        # Validate that we got some data
+        if not extracted_data or not isinstance(extracted_data, dict):
+            print(f"[ERROR] Extracted data is not a valid dict: {type(extracted_data)}")
+            return _get_empty_profile_structure()
+        
+        # Log what was extracted
+        print(f"[INFO] Extracted data keys: {list(extracted_data.keys())}")
+        identity_data = extracted_data.get("identity", {})
+        if identity_data and isinstance(identity_data, dict):
+            name_val = identity_data.get("name")
+            print(f"[INFO] Identity name extracted: {name_val is not None and name_val != ''}")
+        prof_summary = extracted_data.get("professional_summary")
+        if prof_summary is not None and prof_summary != "":
+            print(f"[INFO] Professional summary extracted: {len(str(prof_summary))} chars")
+        experience_data = extracted_data.get("experience")
+        if experience_data is not None and isinstance(experience_data, list):
+            print(f"[INFO] Experience entries: {len(experience_data)}")
+        skills_data = extracted_data.get("skills", {})
+        if skills_data and isinstance(skills_data, dict):
+            technical_skills = skills_data.get("technical")
+            if technical_skills is not None and isinstance(technical_skills, list):
+                print(f"[INFO] Skills extracted: {len(technical_skills)} technical")
         
         # Validate and normalize structure
-        return _normalize_profile_structure(extracted_data)
+        normalized = _normalize_profile_structure(extracted_data)
+        
+        # Final validation - check if we got any meaningful data
+        identity = normalized.get("identity", {})
+        skills = normalized.get("skills", {})
+        experience = normalized.get("experience")
+        has_data = (
+            (identity.get("name") is not None and identity.get("name") != "") or
+            (normalized.get("professional_summary") is not None and normalized.get("professional_summary") != "") or
+            (experience is not None and isinstance(experience, list) and len(experience) > 0) or
+            (skills.get("technical") is not None and isinstance(skills.get("technical"), list) and len(skills.get("technical", [])) > 0)
+        )
+        
+        if not has_data:
+            print(f"[WARNING] Extracted data appears to be empty after normalization (all values are null)")
+        
+        return normalized
     
     except Exception as e:
         print(f"Error in deep CV extraction: {e}")
@@ -188,111 +246,109 @@ OUTPUT FORMAT (JSON only):
 
 
 def _get_empty_profile_structure() -> Dict[str, Any]:
-    """Return empty profile structure."""
+    """Return empty profile structure with null values."""
     return {
         "identity": {
-            "name": "",
-            "email": "",
-            "phone": "",
-            "location": "",
-            "links": []
+            "name": None,
+            "email": None,
+            "phone": None,
+            "location": None,
+            "links": None
         },
-        "career_intent": {
-            "current_status": "",
-            "target_roles": [],
-            "industry": ""
-        },
-        "professional_summary": "",
+        "professional_summary": None,
         "skills": {
-            "technical": [],
-            "tools": [],
-            "soft": []
+            "technical": None,
+            "tools": None,
+            "soft": None
         },
-        "experience": [],
-        "education": [],
-        "projects": [],
-        "achievements": []
+        "experience": None,
+        "education": None,
+        "projects": None,
+        "achievements": None
     }
 
 
 def _normalize_profile_structure(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize and validate extracted profile structure."""
+    """Normalize and validate extracted profile structure. Preserves null values."""
     result = _get_empty_profile_structure()
     
     # Identity
     if "identity" in data and isinstance(data["identity"], dict):
         identity = data["identity"]
         result["identity"] = {
-            "name": str(identity.get("name", "")).strip() if identity.get("name") else "",
-            "email": str(identity.get("email", "")).strip() if identity.get("email") else "",
-            "phone": str(identity.get("phone", "")).strip() if identity.get("phone") else "",
-            "location": str(identity.get("location", "")).strip() if identity.get("location") else "",
-            "links": [str(link).strip() for link in identity.get("links", []) if link] if isinstance(identity.get("links"), list) else []
-        }
-    
-    # Career Intent
-    if "career_intent" in data and isinstance(data["career_intent"], dict):
-        intent = data["career_intent"]
-        result["career_intent"] = {
-            "current_status": str(intent.get("current_status", "")).strip() if intent.get("current_status") else "",
-            "target_roles": [str(role).strip() for role in intent.get("target_roles", []) if role] if isinstance(intent.get("target_roles"), list) else [],
-            "industry": str(intent.get("industry", "")).strip() if intent.get("industry") else ""
+            "name": str(identity.get("name")).strip() if identity.get("name") is not None and identity.get("name") != "" else None,
+            "email": str(identity.get("email")).strip() if identity.get("email") is not None and identity.get("email") != "" else None,
+            "phone": str(identity.get("phone")).strip() if identity.get("phone") is not None and identity.get("phone") != "" else None,
+            "location": str(identity.get("location")).strip() if identity.get("location") is not None and identity.get("location") != "" else None,
+            "links": [str(link).strip() for link in identity.get("links") if link] if isinstance(identity.get("links"), list) and identity.get("links") is not None else None
         }
     
     # Professional Summary
-    if data.get("professional_summary"):
-        result["professional_summary"] = str(data["professional_summary"]).strip()
+    if "professional_summary" in data:
+        prof_summary = data.get("professional_summary")
+        result["professional_summary"] = str(prof_summary).strip() if prof_summary is not None and prof_summary != "" else None
     
     # Skills
     if "skills" in data and isinstance(data["skills"], dict):
         skills = data["skills"]
         result["skills"] = {
-            "technical": [str(s).strip() for s in skills.get("technical", []) if s] if isinstance(skills.get("technical"), list) else [],
-            "tools": [str(s).strip() for s in skills.get("tools", []) if s] if isinstance(skills.get("tools"), list) else [],
-            "soft": [str(s).strip() for s in skills.get("soft", []) if s] if isinstance(skills.get("soft"), list) else []
+            "technical": [str(s).strip() for s in skills.get("technical") if s] if isinstance(skills.get("technical"), list) and skills.get("technical") is not None else None,
+            "tools": [str(s).strip() for s in skills.get("tools") if s] if isinstance(skills.get("tools"), list) and skills.get("tools") is not None else None,
+            "soft": [str(s).strip() for s in skills.get("soft") if s] if isinstance(skills.get("soft"), list) and skills.get("soft") is not None else None
         }
     
     # Experience
-    if "experience" in data and isinstance(data["experience"], list):
-        result["experience"] = [
-            {
-                "company": str(exp.get("company", "")).strip() if exp.get("company") else "",
-                "role": str(exp.get("role", "")).strip() if exp.get("role") else "",
-                "duration": str(exp.get("duration", "")).strip() if exp.get("duration") else "",
-                "responsibilities": [str(r).strip() for r in exp.get("responsibilities", []) if r] if isinstance(exp.get("responsibilities"), list) else []
-            }
-            for exp in data["experience"] if isinstance(exp, dict)
-        ]
+    if "experience" in data:
+        if isinstance(data["experience"], list) and data["experience"] is not None:
+            result["experience"] = [
+                {
+                    "company": str(exp.get("company")).strip() if exp.get("company") is not None and exp.get("company") != "" else None,
+                    "role": str(exp.get("role")).strip() if exp.get("role") is not None and exp.get("role") != "" else None,
+                    "duration": str(exp.get("duration")).strip() if exp.get("duration") is not None and exp.get("duration") != "" else None,
+                    "responsibilities": [str(r).strip() for r in exp.get("responsibilities") if r] if isinstance(exp.get("responsibilities"), list) and exp.get("responsibilities") is not None else None
+                }
+                for exp in data["experience"] if isinstance(exp, dict)
+            ]
+        else:
+            result["experience"] = None
     
     # Education
-    if "education" in data and isinstance(data["education"], list):
-        result["education"] = [
-            {
-                "degree": str(edu.get("degree", "")).strip() if edu.get("degree") else "",
-                "institution": str(edu.get("institution", "")).strip() if edu.get("institution") else "",
-                "year": str(edu.get("year", "")).strip() if edu.get("year") else "",
-                "specialization": str(edu.get("specialization", "")).strip() if edu.get("specialization") else ""
-            }
-            for edu in data["education"] if isinstance(edu, dict)
-        ]
+    if "education" in data:
+        if isinstance(data["education"], list) and data["education"] is not None:
+            result["education"] = [
+                {
+                    "degree": str(edu.get("degree")).strip() if edu.get("degree") is not None and edu.get("degree") != "" else None,
+                    "institution": str(edu.get("institution")).strip() if edu.get("institution") is not None and edu.get("institution") != "" else None,
+                    "year": str(edu.get("year")).strip() if edu.get("year") is not None and edu.get("year") != "" else None,
+                    "specialization": str(edu.get("specialization")).strip() if edu.get("specialization") is not None and edu.get("specialization") != "" else None
+                }
+                for edu in data["education"] if isinstance(edu, dict)
+            ]
+        else:
+            result["education"] = None
     
     # Projects
-    if "projects" in data and isinstance(data["projects"], list):
-        result["projects"] = [
-            {
-                "name": str(proj.get("name", "")).strip() if proj.get("name") else "",
-                "tech_stack": str(proj.get("tech_stack", "")).strip() if proj.get("tech_stack") else "",
-                "impact": str(proj.get("impact", "")).strip() if proj.get("impact") else ""
-            }
-            for proj in data["projects"] if isinstance(proj, dict)
-        ]
+    if "projects" in data:
+        if isinstance(data["projects"], list) and data["projects"] is not None:
+            result["projects"] = [
+                {
+                    "name": str(proj.get("name")).strip() if proj.get("name") is not None and proj.get("name") != "" else None,
+                    "tech_stack": str(proj.get("tech_stack")).strip() if proj.get("tech_stack") is not None and proj.get("tech_stack") != "" else None,
+                    "impact": str(proj.get("impact")).strip() if proj.get("impact") is not None and proj.get("impact") != "" else None
+                }
+                for proj in data["projects"] if isinstance(proj, dict)
+            ]
+        else:
+            result["projects"] = None
     
     # Achievements
     if "achievements" in data:
-        if isinstance(data["achievements"], list):
-            result["achievements"] = [str(a).strip() for a in data["achievements"] if a]
-        elif isinstance(data["achievements"], str):
-            result["achievements"] = [data["achievements"].strip()] if data["achievements"].strip() else []
+        if isinstance(data["achievements"], list) and data["achievements"] is not None:
+            result["achievements"] = [str(a).strip() for a in data["achievements"] if a] if len([a for a in data["achievements"] if a]) > 0 else None
+        elif isinstance(data["achievements"], str) and data["achievements"] is not None:
+            result["achievements"] = [data["achievements"].strip()] if data["achievements"].strip() else None
+        else:
+            result["achievements"] = None
     
     return result
 
@@ -326,7 +382,7 @@ def extract_cv_data(cv_text: str) -> Dict[str, Any]:
         }
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('models/gemini-1.5-pro')
         
         # Limit text to 8000 chars for API
         cv_text_limited = cv_text[:8000] if len(cv_text) > 8000 else cv_text
@@ -372,7 +428,13 @@ Return format (JSON only):
             )
         )
         
-        response_text = response.text.strip()
+        # Log raw response before any processing
+        raw_response_text = response.text if hasattr(response, 'text') else str(response)
+        print(f"[INFO] Raw Gemini response (CV_EXTRACTION):")
+        print(f"[RAW_RESPONSE] {raw_response_text}")
+        print(f"[INFO] Raw response length: {len(raw_response_text)} chars")
+        
+        response_text = raw_response_text.strip()
         log_prompt_and_response(prompt, response_text, "CV_EXTRACTION")
         
         # Remove markdown code blocks if present
@@ -444,7 +506,7 @@ def generate_cover_letter(about_me: Dict[str, Any], job_description: str, compan
         return "AI service not available. Please configure GEMINI_API_KEY."
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('models/gemini-1.5-pro')
         
         # Prepare about me summary
         about_me_text = f"""
@@ -495,7 +557,13 @@ Start directly with the salutation (e.g., "Dear Hiring Manager,").
             )
         )
         
-        cover_letter = response.text.strip()
+        # Log raw response before any processing
+        raw_response_text = response.text if hasattr(response, 'text') else str(response)
+        print(f"[INFO] Raw Gemini response (COVER_LETTER):")
+        print(f"[RAW_RESPONSE] {raw_response_text}")
+        print(f"[INFO] Raw response length: {len(raw_response_text)} chars")
+        
+        cover_letter = raw_response_text.strip()
         log_prompt_and_response(prompt, cover_letter, "COVER_LETTER")
         
         # Clean up the response
@@ -539,7 +607,7 @@ def generate_application_email(
         }
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('models/gemini-1.5-pro')
         
         cover_letter_note = f"\nCover letter: {'Included' if cover_letter else 'Not included'}"
         if cover_letter:
@@ -580,7 +648,13 @@ Return ONLY valid JSON, no markdown, no explanations.
             )
         )
         
-        response_text = response.text.strip()
+        # Log raw response before any processing
+        raw_response_text = response.text if hasattr(response, 'text') else str(response)
+        print(f"[INFO] Raw Gemini response (APPLICATION_EMAIL):")
+        print(f"[RAW_RESPONSE] {raw_response_text}")
+        print(f"[INFO] Raw response length: {len(raw_response_text)} chars")
+        
+        response_text = raw_response_text.strip()
         log_prompt_and_response(prompt, response_text, "APPLICATION_EMAIL")
         
         # Parse JSON
@@ -636,7 +710,7 @@ def match_jd_cv(job_description: str, about_me: Dict[str, Any]) -> Dict[str, Any
         }
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('models/gemini-1.5-pro')
         
         # Prepare candidate profile
         candidate_skills = about_me.get('skills', [])
@@ -695,7 +769,13 @@ CRITICAL RULES:
             )
         )
         
-        response_text = response.text.strip()
+        # Log raw response before any processing
+        raw_response_text = response.text if hasattr(response, 'text') else str(response)
+        print(f"[INFO] Raw Gemini response (JD_CV_MATCHING):")
+        print(f"[RAW_RESPONSE] {raw_response_text}")
+        print(f"[INFO] Raw response length: {len(raw_response_text)} chars")
+        
+        response_text = raw_response_text.strip()
         log_prompt_and_response(prompt, response_text, "JD_CV_MATCHING")
         
         # Parse JSON

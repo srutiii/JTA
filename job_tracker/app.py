@@ -7,6 +7,14 @@ from datetime import date, datetime, timedelta
 from functools import wraps
 from urllib.parse import quote, urlparse
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not installed, continue without it
+    pass
+
 import mysql.connector
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for, send_from_directory
 from werkzeug.exceptions import NotFound
@@ -1647,13 +1655,113 @@ def interviews():
 # ============================================================================
 
 
-@app.route("/about-me", methods=["GET"])
+@app.route("/about-me", methods=["GET", "POST"])
 @login_required
 def about_me():
-    """Display user's complete About Me profile with structured sections."""
+    """
+    About Me - Single profile hub.
+    Handles: Display, CV upload (store only), and profile management.
+    """
+    user_id = session["user_id"]
+    
+    # Handle CV upload (POST from inline form)
+    if request.method == "POST" and 'cv_file' in request.files:
+        file = request.files['cv_file']
+        
+        if file.filename != '' and allowed_file(file.filename):
+            # Check file size
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)
+            
+            if file_size <= MAX_FILE_SIZE:
+                # Generate secure filename
+                filename = secure_filename(file.filename)
+                user_filename = f"{user_id}_{int(datetime.now().timestamp())}_{filename}"
+                file_path = os.path.join(UPLOAD_FOLDER, user_filename)
+                
+                conn = None
+                cursor = None
+                try:
+                    # Save file
+                    file.save(file_path)
+                    
+                    # Store CV file reference (NO extraction here)
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    
+                    # Delete old CV file if exists
+                    cursor.execute("SELECT cv_file_path FROM profiles WHERE user_id = %s", (user_id,))
+                    old_profile = cursor.fetchone()
+                    if old_profile and old_profile[0]:
+                        old_file_path = os.path.join(UPLOAD_FOLDER, os.path.basename(old_profile[0]))
+                        if os.path.exists(old_file_path):
+                            try:
+                                os.remove(old_file_path)
+                            except OSError:
+                                pass
+                    
+                    # Store CV file reference
+                    cursor.execute(
+                        """
+                        INSERT INTO profiles (user_id, cv_file_path, cv_file_name, cv_uploaded_at)
+                        VALUES (%s, %s, %s, NOW())
+                        ON DUPLICATE KEY UPDATE
+                            cv_file_path = VALUES(cv_file_path),
+                            cv_file_name = VALUES(cv_file_name),
+                            cv_uploaded_at = VALUES(cv_uploaded_at),
+                            updated_at = NOW()
+                        """,
+                        (user_id, user_filename, filename)
+                    )
+                    conn.commit()
+                    
+                    # Automatically extract profile data from CV (silent - no flash messages)
+                    # Content will automatically appear when available
+                    print(f"[INFO] CV uploaded, starting automatic extraction...")
+                    success, message = _perform_cv_extraction(user_id, file_path)
+                    
+                    # Silent extraction - content appears automatically, no alerts
+                    # Only log for debugging
+                    if success:
+                        print(f"[INFO] CV extraction successful: {message}")
+                    else:
+                        print(f"[INFO] CV extraction failed (silent): {message}")
+                        # Don't show errors - partial extraction is fine, content appears as available
+                    
+                    # Close connections before redirect
+                    if cursor is not None:
+                        cursor.close()
+                    if conn is not None:
+                        conn.close()
+                    
+                    # Redirect to refresh the page with new data
+                    return redirect(url_for('about_me'))
+                except Exception as e:
+                    if conn is not None:
+                        conn.rollback()
+                    # Silent error handling - don't show upload errors
+                    # File upload errors are logged but not displayed to user
+                    print(f"[ERROR] CV upload error (silent): {e}")
+                    # Close connections even on error
+                    if cursor is not None:
+                        cursor.close()
+                    if conn is not None:
+                        conn.close()
+                    # Redirect silently - page will show current state
+                    return redirect(url_for('about_me'))
+            else:
+                flash("File too large. Maximum size is 10MB.", "danger")
+                return redirect(url_for('about_me'))
+        elif file.filename != '':
+            flash("Invalid file type. Please upload a PDF, DOC, or DOCX file.", "danger")
+            return redirect(url_for('about_me'))
+    
+    # GET: Display profile
     conn = None
     cursor = None
     profile = None
+    cv_info = None
     error_message = None
 
     try:
@@ -1664,53 +1772,311 @@ def about_me():
             SELECT 
                 identity, career_intent, professional_summary,
                 skills_json, experience_json, education_json, projects_json, achievements_json,
-                name, age, bio, qualification, experience, projects, skills, achievements, portfolio_links, looking_for
+                name, age, bio, qualification, experience, projects, skills, achievements, portfolio_links, looking_for,
+                cv_file_path, cv_file_name, cv_uploaded_at
             FROM profiles
             WHERE user_id = %s
             """,
-            (session["user_id"],),
+            (user_id,),
         )
         profile = cursor.fetchone()
+        
+        # Get CV info if exists
+        if profile and profile.get("cv_file_path"):
+            cv_file_path = os.path.join(UPLOAD_FOLDER, os.path.basename(profile["cv_file_path"]))
+            if os.path.exists(cv_file_path):
+                cv_info = {
+                    "filename": profile.get("cv_file_name") or os.path.basename(profile["cv_file_path"]),
+                    "uploaded_at": profile.get("cv_uploaded_at")
+                }
         
         # Parse JSON fields
         if profile:
             # Parse JSON fields if they exist
             for json_field in ['identity', 'career_intent', 'skills_json', 'experience_json', 'education_json', 'projects_json', 'achievements_json']:
-                if profile.get(json_field) and isinstance(profile[json_field], str):
+                field_value = profile.get(json_field)
+                if field_value is None:
+                    profile[json_field] = None
+                elif isinstance(field_value, dict):
+                    # Already a dict (MySQL JSON type returns dict)
+                    profile[json_field] = field_value
+                elif isinstance(field_value, str):
+                    # Parse JSON string
                     try:
-                        profile[json_field] = json.loads(profile[json_field])
+                        parsed = json.loads(field_value)
+                        # Keep parsed value even if empty dict/list
+                        profile[json_field] = parsed
                     except (json.JSONDecodeError, TypeError):
                         profile[json_field] = None
-                elif profile.get(json_field) is None:
+                elif isinstance(field_value, list):
+                    # Already a list (MySQL JSON type returns list)
+                    profile[json_field] = field_value
+                else:
                     profile[json_field] = None
             
-            # Build structured profile data
+            # Build structured profile data - handle null values from AI extraction
+            # Only show sections with actual data, hide empty/null fields
+            def normalize_json_field(field_value, default_type):
+                """Normalize JSON field to proper type (dict or list).
+                Handles null values from AI extraction - returns None for empty/null to hide sections."""
+                if field_value is None:
+                    return None  # Preserve null from AI extraction - template will hide section
+                if isinstance(field_value, (dict, list)):
+                    # Check if it's an empty structure or has actual data
+                    if isinstance(field_value, dict):
+                        # If all values are null or empty, return None
+                        if len(field_value) == 0:
+                            return None
+                        # Check if any value is non-null and non-empty
+                        has_data = any(
+                            v is not None and 
+                            (not isinstance(v, str) or v.strip() != '') and
+                            (not isinstance(v, (list, dict)) or len(v) > 0)
+                            for v in field_value.values()
+                        )
+                        return field_value if has_data else None
+                    elif isinstance(field_value, list):
+                        # If list is empty or all items are null/empty, return None
+                        if len(field_value) == 0:
+                            return None
+                        # Check if any item is non-null and non-empty
+                        has_data = any(
+                            item is not None and
+                            (not isinstance(item, str) or item.strip() != '') and
+                            (not isinstance(item, (list, dict)) or len(item) > 0)
+                            for item in field_value
+                        )
+                        return field_value if has_data else None
+                    return field_value
+                if isinstance(field_value, str):
+                    stripped = field_value.strip()
+                    if stripped in ['', 'null', '{}', '[]']:
+                        return None  # Return None for empty/null strings
+                    try:
+                        parsed = json.loads(stripped)
+                        # If parsed is empty or all null, return None
+                        if parsed is None:
+                            return None
+                        if isinstance(parsed, dict) and (len(parsed) == 0 or all(v is None or (isinstance(v, str) and v.strip() == '') for v in parsed.values())):
+                            return None
+                        if isinstance(parsed, list) and (len(parsed) == 0 or all(item is None or (isinstance(item, str) and item.strip() == '') for item in parsed)):
+                            return None
+                        return parsed if parsed else None
+                    except (json.JSONDecodeError, TypeError):
+                        return None
+                return None
+            
+            identity_data = normalize_json_field(profile.get("identity"), {})
+            career_intent_data = normalize_json_field(profile.get("career_intent"), {})
+            skills_data = normalize_json_field(profile.get("skills_json"), {})
+            experience_data = normalize_json_field(profile.get("experience_json"), [])
+            education_data = normalize_json_field(profile.get("education_json"), [])
+            projects_data = normalize_json_field(profile.get("projects_json"), [])
+            achievements_data = normalize_json_field(profile.get("achievements_json"), [])
+            
+            # Handle professional_summary - preserve null if it's null
+            professional_summary = profile.get("professional_summary")
+            if professional_summary is None or (isinstance(professional_summary, str) and professional_summary.strip() == ''):
+                professional_summary = None
+            else:
+                professional_summary = str(professional_summary).strip()
+            
+            # Build profile_data - use None for empty/null fields so template hides sections
+            # Only include fields with actual data
             profile_data = {
-                "identity": profile.get("identity") or {},
-                "career_intent": profile.get("career_intent") or {},
-                "professional_summary": profile.get("professional_summary") or "",
-                "skills": profile.get("skills_json") or {},
-                "experience": profile.get("experience_json") or [],
-                "education": profile.get("education_json") or [],
-                "projects": profile.get("projects_json") or [],
-                "achievements": profile.get("achievements_json") or []
+                "identity": identity_data,  # Can be None, {}, or dict with data
+                "career_intent": career_intent_data,  # Can be None, {}, or dict with data
+                "professional_summary": professional_summary,  # Can be None or string
+                "skills": skills_data,  # Can be None, {}, or dict with data
+                "experience": experience_data,  # Can be None, [], or list with data
+                "education": education_data,  # Can be None, [], or list with data
+                "projects": projects_data,  # Can be None, [], or list with data
+                "achievements": achievements_data  # Can be None, [], or list with data
             }
             profile["profile_data"] = profile_data
+            
+            # Debug output - show raw database values
+            print(f"[DEBUG] Profile data built for user_id: {user_id}")
+            print(f"[DEBUG] Raw identity from DB: {profile.get('identity')}")
+            print(f"[DEBUG] Raw professional_summary from DB: '{profile.get('professional_summary')}'")
+            print(f"[DEBUG] Raw skills_json from DB: {profile.get('skills_json')}")
+            print(f"[DEBUG] Raw experience_json from DB: {profile.get('experience_json')}")
+            print(f"[DEBUG] Identity type: {type(identity_data)}, keys: {list(identity_data.keys()) if isinstance(identity_data, dict) else 'N/A'}")
+            print(f"[DEBUG] Identity name: '{identity_data.get('name') if isinstance(identity_data, dict) else 'N/A'}'")
+            print(f"[DEBUG] Identity email: '{identity_data.get('email') if isinstance(identity_data, dict) else 'N/A'}'")
+            print(f"[DEBUG] Professional Summary length: {len(profile_data.get('professional_summary', ''))}")
+            print(f"[DEBUG] Professional Summary content: '{profile_data.get('professional_summary', '')[:100]}'")
+            print(f"[DEBUG] Experience count: {len(experience_data)}")
+            print(f"[DEBUG] Experience data: {experience_data}")
+            print(f"[DEBUG] Skills type: {type(skills_data)}, keys: {list(skills_data.keys()) if isinstance(skills_data, dict) else 'N/A'}")
+            print(f"[DEBUG] Skills technical: {skills_data.get('technical', []) if isinstance(skills_data, dict) else 'N/A'}")
+            print(f"[DEBUG] Profile has profile_data: {bool(profile.get('profile_data'))}")
+        else:
+            # Profile exists but no JSON data - create empty profile_data structure
+            profile["profile_data"] = {
+                "identity": {},
+                "career_intent": {},
+                "professional_summary": "",
+                "skills": {},
+                "experience": [],
+                "education": [],
+                "projects": [],
+                "achievements": []
+            }
+            print(f"[DEBUG] Created empty profile_data for user_id: {user_id}")
     except mysql.connector.Error as e:
         error_message = f"Database error: {e}"
+        print(f"[ERROR] Database error in about_me: {e}")
+    except Exception as e:
+        error_message = f"Error loading profile: {e}"
+        print(f"[ERROR] Unexpected error in about_me: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         if cursor is not None:
             cursor.close()
         if conn is not None:
             conn.close()
 
-    return render_template("about_me.html", profile=profile, error_message=error_message)
+    return render_template("about_me.html", profile=profile, cv_info=cv_info, error_message=error_message, ai_available=AI_SERVICE_AVAILABLE and is_ai_available())
+
+
+@app.route("/cv/download", methods=["GET"])
+@login_required
+def download_cv():
+    """Download the user's uploaded CV file."""
+    user_id = session["user_id"]
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT cv_file_path, cv_file_name FROM profiles WHERE user_id = %s",
+            (user_id,)
+        )
+        profile = cursor.fetchone()
+        
+        if not profile or not profile.get("cv_file_path"):
+            flash("No CV file found.", "warning")
+            return redirect(url_for('about_me'))
+        
+        file_path = os.path.join(UPLOAD_FOLDER, os.path.basename(profile["cv_file_path"]))
+        if not os.path.exists(file_path):
+            flash("CV file not found on server.", "warning")
+            return redirect(url_for('about_me'))
+        
+        # Get the original filename or use the stored filename
+        download_name = profile.get("cv_file_name") or os.path.basename(profile["cv_file_path"])
+        
+        # Determine MIME type based on file extension
+        file_ext = os.path.splitext(download_name)[1].lower()
+        mimetype_map = {
+            '.pdf': 'application/pdf',
+            '.doc': 'application/msword',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+        mimetype = mimetype_map.get(file_ext, 'application/octet-stream')
+        
+        return send_from_directory(
+            UPLOAD_FOLDER,
+            os.path.basename(profile["cv_file_path"]),
+            as_attachment=True,
+            download_name=download_name,
+            mimetype=mimetype
+        )
+    
+    except Exception as e:
+        print(f"[ERROR] Error downloading CV: {e}")
+        flash(f"Error downloading CV: {str(e)}", "danger")
+        return redirect(url_for('about_me'))
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+
+
+@app.route("/cv/delete", methods=["POST"])
+@login_required
+def delete_cv():
+    """Delete the user's uploaded CV file and clear database references."""
+    user_id = session["user_id"]
+    conn = None
+    cursor = None
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get current CV file path
+        cursor.execute(
+            "SELECT cv_file_path FROM profiles WHERE user_id = %s",
+            (user_id,)
+        )
+        profile = cursor.fetchone()
+        
+        if profile and profile.get("cv_file_path"):
+            file_path = os.path.join(UPLOAD_FOLDER, os.path.basename(profile["cv_file_path"]))
+            
+            # Delete file from filesystem
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    print(f"[INFO] Deleted CV file: {file_path}")
+                except OSError as e:
+                    print(f"[WARNING] Could not delete CV file: {e}")
+                    # Continue anyway - we'll still clear the database reference
+        
+        # Clear CV references in database
+        cursor.execute(
+            """
+            UPDATE profiles 
+            SET cv_file_path = NULL, 
+                cv_file_name = NULL, 
+                cv_uploaded_at = NULL,
+                updated_at = NOW()
+            WHERE user_id = %s
+            """,
+            (user_id,)
+        )
+        conn.commit()
+        
+        flash("CV file deleted successfully.", "success")
+        print(f"[INFO] Cleared CV references for user_id: {user_id}")
+    
+    except mysql.connector.Error as e:
+        if conn is not None:
+            conn.rollback()
+        print(f"[ERROR] Database error deleting CV: {e}")
+        flash(f"Error deleting CV: {str(e)}", "danger")
+    except Exception as e:
+        if conn is not None:
+            conn.rollback()
+        print(f"[ERROR] Unexpected error deleting CV: {e}")
+        flash(f"Error deleting CV: {str(e)}", "danger")
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+    
+    return redirect(url_for('about_me'))
 
 
 @app.route("/about-me/edit", methods=["GET", "POST"])
 @login_required
 def edit_profile():
-    """Add or edit user profile - supports both legacy fields and JSON structure."""
+    """
+    Add or edit user profile - supports both legacy fields and JSON structure.
+    
+    CRITICAL BEHAVIOR - Manual Edits Always Take Priority:
+    - Manual edits ALWAYS take priority over AI-generated data
+    - When user saves profile, it completely replaces the profile data
+    - This ensures user has full control - manual edits are never lost
+    - CV extraction will NOT overwrite manually edited fields (see _perform_cv_extraction)
+    """
     user_id = session["user_id"]
 
     if request.method == "GET":
@@ -1743,15 +2109,24 @@ def edit_profile():
             if profile:
                 profile_data = {}
                 for json_field in ['identity', 'career_intent', 'skills_json', 'experience_json', 'education_json', 'projects_json', 'achievements_json']:
-                    if profile.get(json_field) and isinstance(profile[json_field], str):
+                    field_value = profile.get(json_field)
+                    if field_value is None:
+                        profile_data[json_field] = None
+                    elif isinstance(field_value, dict):
+                        # Already a dict (MySQL JSON type returns dict)
+                        profile_data[json_field] = field_value
+                    elif isinstance(field_value, list):
+                        # Already a list (MySQL JSON type returns list)
+                        profile_data[json_field] = field_value
+                    elif isinstance(field_value, str):
+                        # Parse JSON string
                         try:
-                            profile_data[json_field] = json.loads(profile[json_field])
+                            parsed = json.loads(field_value)
+                            profile_data[json_field] = parsed if parsed else None
                         except (json.JSONDecodeError, TypeError):
                             profile_data[json_field] = None
-                    elif profile.get(json_field) is None:
-                        profile_data[json_field] = None
                     else:
-                        profile_data[json_field] = profile[json_field]
+                        profile_data[json_field] = None
                 
                 profile_data['professional_summary'] = profile.get('professional_summary') or ""
             
@@ -1875,7 +2250,9 @@ def edit_profile():
         skills_legacy = ", ".join(skills.get("technical", []) + skills.get("tools", [])) or (request.form.get("skills") or "").strip() or None
 
         if exists:
-            # Update existing profile
+            # Update existing profile - MANUAL EDITS ALWAYS TAKE PRIORITY
+            # This completely replaces profile data with user's manual input
+            # CV extraction will respect these manual edits and not overwrite them
             cursor.execute(
                 """
                 UPDATE profiles
@@ -1934,12 +2311,12 @@ def edit_profile():
 @login_required
 def upload_cv():
     """
-    CV upload - extracts data silently and redirects to About Me.
-    CV is only an input, not a visible feature.
+    Legacy CV upload route - redirects to About Me.
+    CV upload is now handled inline in About Me page.
     """
     if request.method == "GET":
-        # Simple upload page - no CV management UI
-        return render_template("upload_cv.html")
+        # Redirect to About Me where CV upload is handled
+        return redirect(url_for("about_me"))
     
     # POST: Handle file upload and auto-extract
     if 'cv_file' not in request.files:
@@ -2006,60 +2383,31 @@ def upload_cv():
                 except OSError:
                     pass
         
-        # Store CV file reference and extracted data
+        # Store CV file reference and extracted data with safeguards
+        # Use the same safe extraction logic as _perform_cv_extraction
         if profile_data:
-            # Convert profile_data to JSON strings for storage
-            identity_json = json.dumps(profile_data.get("identity", {}))
-            career_intent_json = json.dumps(profile_data.get("career_intent", {}))
-            skills_json = json.dumps(profile_data.get("skills", {}))
-            experience_json = json.dumps(profile_data.get("experience", []))
-            education_json = json.dumps(profile_data.get("education", []))
-            projects_json = json.dumps(profile_data.get("projects", []))
-            achievements_json = json.dumps(profile_data.get("achievements", []))
-            
-            # Also populate legacy fields for backward compatibility
-            identity = profile_data.get("identity", {})
-            career_intent = profile_data.get("career_intent", {})
-            
+            # Use _perform_cv_extraction helper which has all the safeguards
+            # But first, we need to store the CV file reference
             cursor.execute(
                 """
-                INSERT INTO profiles (
-                    user_id, cv_file_path, cv_file_name, cv_uploaded_at,
-                    identity, career_intent, professional_summary,
-                    skills_json, experience_json, education_json, projects_json, achievements_json,
-                    name, email, phone, bio, looking_for, skills
-                )
-                VALUES (%s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO profiles (user_id, cv_file_path, cv_file_name, cv_uploaded_at)
+                VALUES (%s, %s, %s, NOW())
                 ON DUPLICATE KEY UPDATE
                     cv_file_path = VALUES(cv_file_path),
                     cv_file_name = VALUES(cv_file_name),
                     cv_uploaded_at = VALUES(cv_uploaded_at),
-                    identity = VALUES(identity),
-                    career_intent = VALUES(career_intent),
-                    professional_summary = VALUES(professional_summary),
-                    skills_json = VALUES(skills_json),
-                    experience_json = VALUES(experience_json),
-                    education_json = VALUES(education_json),
-                    projects_json = VALUES(projects_json),
-                    achievements_json = VALUES(achievements_json),
-                    name = VALUES(name),
-                    email = VALUES(email),
-                    phone = VALUES(phone),
-                    bio = VALUES(bio),
-                    looking_for = VALUES(looking_for),
-                    skills = VALUES(skills),
                     updated_at = NOW()
                 """,
-                (
-                    session["user_id"], user_filename, filename,
-                    identity_json, career_intent_json, profile_data.get("professional_summary", ""),
-                    skills_json, experience_json, education_json, projects_json, achievements_json,
-                    identity.get("name", ""), identity.get("email", ""), identity.get("phone", ""),
-                    profile_data.get("professional_summary", ""),
-                    ", ".join(career_intent.get("target_roles", [])) if career_intent.get("target_roles") else "",
-                    ", ".join(profile_data.get("skills", {}).get("technical", [])) if profile_data.get("skills", {}).get("technical") else ""
-                )
+                (session["user_id"], user_filename, filename)
             )
+            conn.commit()
+            
+            # Now perform safe extraction using the helper function (silent)
+            # Content will automatically appear when available - no flash messages
+            success, message = _perform_cv_extraction(session["user_id"], file_path)
+            # Silent extraction - content appears automatically, no alerts
+            print(f"[INFO] CV extraction result (silent): success={success}, message={message}")
+            return redirect(url_for("about_me"))
         else:
             # Just store CV file reference if extraction failed
             cursor.execute(
@@ -2077,11 +2425,9 @@ def upload_cv():
         
         conn.commit()
         
-        # Show success message and redirect to About Me
-        if profile_data:
-            flash("CV uploaded and profile created successfully! You can now view and edit your profile.", "success")
-        else:
-            flash("CV uploaded successfully. Profile extraction will be available once AI service is configured.", "info")
+        # Silent upload - content will appear automatically when available
+        # No flash messages - user sees content appear naturally
+        print(f"[INFO] CV upload complete (silent) - profile_data available: {bool(profile_data)}")
         return redirect(url_for("about_me"))
     
     except Exception as e:
@@ -2104,6 +2450,517 @@ def upload_cv():
 
 
 # CV download and delete routes removed - CV is only an input, not a visible feature
+
+
+def _perform_cv_extraction(user_id, file_path):
+    """
+    Helper function to extract profile data from a CV file and save it to the database.
+    
+    CRITICAL BEHAVIOR - AI Extraction as Suggestion Layer:
+    - CV upload ONLY adds or enriches data, NEVER deletes existing user-entered content
+    - Manual edits ALWAYS take priority over AI-generated data
+    - AI extraction behaves as a suggestion layer, NOT a replacement
+    - Only fills empty/null fields - never overwrites existing data
+    - Preserves ALL existing data whether manually entered or AI-generated
+    
+    Returns (success: bool, message: str)
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Extract text from CV
+        file_ext = os.path.splitext(file_path)[1].lower()
+        text = ""
+        
+        if file_ext == '.pdf':
+            if not PDF_AVAILABLE:
+                return False, "PDF parsing not available. Please install PyPDF2."
+            text = extract_text_from_pdf(file_path)
+        elif file_ext in ['.docx']:
+            if not DOCX_AVAILABLE:
+                return False, "DOCX parsing not available. Please install python-docx."
+            text = extract_text_from_docx(file_path)
+        else:
+            return False, "Unsupported file type."
+        
+        if not text or len(text.strip()) < 50:
+            return False, "Could not extract sufficient text from CV. The file might be corrupted or image-based."
+        
+        # Extract using Gemini AI
+        if not AI_SERVICE_AVAILABLE or not is_ai_available():
+            return False, "AI service not configured. Please set GEMINI_API_KEY environment variable."
+        
+        try:
+            profile_data = extract_cv_data_deep(text)
+            # Debug: Print extracted data structure
+            print(f"[DEBUG] Extracted profile_data keys: {list(profile_data.keys()) if profile_data else 'None'}")
+            if profile_data:
+                print(f"[DEBUG] Identity: {profile_data.get('identity')}")
+                print(f"[DEBUG] Professional Summary length: {len(profile_data.get('professional_summary', ''))}")
+                print(f"[DEBUG] Experience count: {len(profile_data.get('experience', []))}")
+                print(f"[DEBUG] Skills: {profile_data.get('skills')}")
+        except Exception as e:
+            print(f"[ERROR] Extraction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return False, f"Error extracting profile data: {str(e)}"
+        
+        if not profile_data:
+            return False, "Could not extract profile data from CV."
+        
+        # Convert profile_data to JSON strings for storage
+        # Always create JSON, even if empty, to maintain structure
+        identity_data = profile_data.get("identity", {}) or {}
+        career_intent_data = profile_data.get("career_intent", {}) or {}
+        skills_data = profile_data.get("skills", {}) or {}
+        experience_data = profile_data.get("experience", []) or []
+        education_data = profile_data.get("education", []) or []
+        projects_data = profile_data.get("projects", []) or []
+        achievements_data = profile_data.get("achievements", []) or []
+        
+        # Always create JSON strings (even for empty structures)
+        identity_json = json.dumps(identity_data)
+        career_intent_json = json.dumps(career_intent_data)
+        skills_json = json.dumps(skills_data)
+        experience_json = json.dumps(experience_data)
+        education_json = json.dumps(education_data)
+        projects_json = json.dumps(projects_data)
+        achievements_json = json.dumps(achievements_data)
+        
+        print(f"[DEBUG] Identity JSON: {identity_json[:200]}...")
+        print(f"[DEBUG] Professional Summary from extraction: '{profile_data.get('professional_summary', '')[:100]}'")
+        
+        # Also populate legacy fields for backward compatibility
+        identity = profile_data.get("identity", {})
+        career_intent = profile_data.get("career_intent", {})
+        
+        # Get current profile to check what's already filled
+        cursor.execute(
+            "SELECT identity, career_intent, professional_summary, skills_json, experience_json, education_json, projects_json, achievements_json, name, email, phone, bio, looking_for, skills FROM profiles WHERE user_id = %s",
+            (user_id,)
+        )
+        current_profile = cursor.fetchone()
+        
+        # Helper functions to check if values are empty (comprehensive validation)
+        def is_empty_json(val):
+            """Check if a JSON value is empty (None, empty dict/list, or empty string representation).
+            Returns True if value is empty and should NOT overwrite existing data."""
+            if val is None:
+                return True
+            if isinstance(val, dict):
+                # Check if dict has any non-empty values
+                return len(val) == 0 or all(
+                    is_empty_json(v) for v in val.values()
+                )
+            if isinstance(val, list):
+                # Check if list has any non-empty items
+                return len(val) == 0 or all(
+                    is_empty_json(item) for item in val
+                )
+            if isinstance(val, str):
+                val = val.strip()
+                return val == '' or val.lower() == 'null' or val == '{}' or val == '[]'
+            return False
+        
+        def is_empty_text(val):
+            """Check if a text value is empty. Returns True if value is empty."""
+            if val is None:
+                return True
+            if isinstance(val, str):
+                return val.strip() == ''
+            return False
+        
+        def has_non_empty_data(data_dict, key):
+            """Check if extracted data has non-empty value for a key.
+            Returns True only if the value contains actual data (not empty string, list, dict, or null)."""
+            val = data_dict.get(key)
+            if val is None:
+                return False
+            if isinstance(val, dict):
+                # Dict is non-empty if it has at least one non-empty value
+                return len(val) > 0 and any(
+                    not is_empty_json(v) for v in val.values()
+                )
+            if isinstance(val, list):
+                # List is non-empty if it has at least one non-empty item
+                return len(val) > 0 and any(
+                    not is_empty_json(item) for item in val
+                )
+            if isinstance(val, str):
+                return val.strip() != ''
+            return False
+        
+        def has_non_empty_identity_field(identity_dict, field):
+            """Check if identity dict has non-empty value for a field.
+            Returns True only if the field contains actual data."""
+            if not identity_dict or not isinstance(identity_dict, dict):
+                return False
+            val = identity_dict.get(field)
+            if val is None:
+                return False
+            if isinstance(val, list):
+                # List is non-empty if it has at least one non-empty item
+                return len(val) > 0 and any(
+                    item and (not isinstance(item, str) or item.strip() != '')
+                    for item in val
+                )
+            if isinstance(val, str):
+                return val.strip() != ''
+            return False
+        
+        def is_valid_extracted_value(val):
+            """Comprehensive check: Returns True if value is valid and should be saved.
+            Returns False for empty strings, empty arrays, empty objects, or null."""
+            if val is None:
+                return False
+            if isinstance(val, str):
+                return val.strip() != ''
+            if isinstance(val, dict):
+                # Valid if dict has at least one non-empty value
+                return len(val) > 0 and any(
+                    is_valid_extracted_value(v) for v in val.values()
+                )
+            if isinstance(val, list):
+                # Valid if list has at least one non-empty item
+                return len(val) > 0 and any(
+                    is_valid_extracted_value(item) for item in val
+                )
+            return True
+        
+        # Log extracted data for debugging
+        print(f"[INFO] CV Extraction Summary:")
+        print(f"  - Identity has data: {has_non_empty_data(profile_data, 'identity')}")
+        print(f"  - Career intent has data: {has_non_empty_data(profile_data, 'career_intent')}")
+        print(f"  - Professional summary: '{profile_data.get('professional_summary', '')[:50]}...'")
+        print(f"  - Skills count: {len(skills_data.get('technical', [])) + len(skills_data.get('tools', []))}")
+        print(f"  - Experience count: {len(experience_data)}")
+        print(f"  - Education count: {len(education_data)}")
+        print(f"  - Projects count: {len(projects_data)}")
+        print(f"  - Achievements count: {len(achievements_data)}")
+        
+        # CRITICAL: AI Extraction Policy - Only Fill Empty Fields
+        # ============================================================
+        # 1. CV upload ONLY adds/enriches data - NEVER deletes existing content
+        # 2. Manual edits ALWAYS take priority - existing data is NEVER overwritten
+        # 3. AI extraction is a suggestion layer - only fills gaps (empty/null fields)
+        # 4. Any existing data (manual or AI) is preserved and protected
+        # ============================================================
+        
+        # Only update fields that are empty or null (don't overwrite existing data)
+        # AND only if extracted value is non-empty (don't overwrite with empty data)
+        update_parts = []
+        update_params = []
+        
+        # If no profile exists, create one with all extracted data (only non-empty fields)
+        if not current_profile:
+            # Only insert fields that have non-empty extracted data
+            insert_fields = ["user_id"]
+            insert_placeholders = ["%s"]
+            insert_values = [user_id]
+            
+            if has_non_empty_data(profile_data, 'identity'):
+                insert_fields.append("identity")
+                insert_placeholders.append("%s")
+                insert_values.append(identity_json)
+            
+            if has_non_empty_data(profile_data, 'career_intent'):
+                insert_fields.append("career_intent")
+                insert_placeholders.append("%s")
+                insert_values.append(career_intent_json)
+            
+            if not is_empty_text(profile_data.get("professional_summary", "")):
+                insert_fields.append("professional_summary")
+                insert_placeholders.append("%s")
+                insert_values.append(profile_data.get("professional_summary", ""))
+            
+            if has_non_empty_data(profile_data, 'skills'):
+                insert_fields.append("skills_json")
+                insert_placeholders.append("%s")
+                insert_values.append(skills_json)
+            
+            if has_non_empty_data(profile_data, 'experience'):
+                insert_fields.append("experience_json")
+                insert_placeholders.append("%s")
+                insert_values.append(experience_json)
+            
+            if has_non_empty_data(profile_data, 'education'):
+                insert_fields.append("education_json")
+                insert_placeholders.append("%s")
+                insert_values.append(education_json)
+            
+            if has_non_empty_data(profile_data, 'projects'):
+                insert_fields.append("projects_json")
+                insert_placeholders.append("%s")
+                insert_values.append(projects_json)
+            
+            if has_non_empty_data(profile_data, 'achievements'):
+                insert_fields.append("achievements_json")
+                insert_placeholders.append("%s")
+                insert_values.append(achievements_json)
+            
+            # Legacy fields (only if extracted data exists)
+            if has_non_empty_identity_field(identity, 'name'):
+                insert_fields.append("name")
+                insert_placeholders.append("%s")
+                insert_values.append(identity.get("name", ""))
+            
+            if has_non_empty_identity_field(identity, 'email'):
+                insert_fields.append("email")
+                insert_placeholders.append("%s")
+                insert_values.append(identity.get("email", ""))
+            
+            if has_non_empty_identity_field(identity, 'phone'):
+                insert_fields.append("phone")
+                insert_placeholders.append("%s")
+                insert_values.append(identity.get("phone", ""))
+            
+            if not is_empty_text(profile_data.get("professional_summary", "")):
+                if "bio" not in insert_fields:
+                    insert_fields.append("bio")
+                    insert_placeholders.append("%s")
+                    insert_values.append(profile_data.get("professional_summary", ""))
+            
+            if career_intent.get("target_roles") and len(career_intent.get("target_roles", [])) > 0:
+                insert_fields.append("looking_for")
+                insert_placeholders.append("%s")
+                insert_values.append(", ".join(career_intent.get("target_roles", [])))
+            
+            if profile_data.get("skills", {}).get("technical") and len(profile_data.get("skills", {}).get("technical", [])) > 0:
+                insert_fields.append("skills")
+                insert_placeholders.append("%s")
+                insert_values.append(", ".join(profile_data.get("skills", {}).get("technical", [])))
+            
+            if len(insert_fields) > 1:  # More than just user_id
+                cursor.execute(
+                    f"""
+                    INSERT INTO profiles ({', '.join(insert_fields)})
+                    VALUES ({', '.join(insert_placeholders)})
+                    """,
+                    tuple(insert_values)
+                )
+                conn.commit()
+                print(f"[INFO] Profile created with {len(insert_fields) - 1} populated field(s)")
+                return True, f"Profile extracted from CV successfully! {len(insert_fields) - 1} section(s) have been populated."
+            else:
+                return False, "Could not extract any valid data from CV. Please check the file and try again."
+        else:
+            # Update only empty fields AND only if extracted value is non-empty
+            # CRITICAL: Never overwrite existing data - manual edits always take priority
+            # AI extraction only fills gaps - existing data (manual or AI) is preserved
+            current_identity = current_profile.get("identity")
+            if is_empty_json(current_identity) and has_non_empty_data(profile_data, 'identity') and is_valid_extracted_value(identity_data):
+                update_parts.append("identity = %s")
+                update_params.append(identity_json)
+                print(f"[INFO] AI SUGGESTION: Filling empty identity field with extracted data")
+            elif not is_empty_json(current_identity):
+                print(f"[INFO] PRESERVING: Existing identity data (manual or AI) - not overwriting with CV extraction")
+            
+            # NOTE: career_intent removed from new structure, but keeping check for backward compatibility
+            current_career_intent = current_profile.get("career_intent")
+            if is_empty_json(current_career_intent) and has_non_empty_data(profile_data, 'career_intent') and is_valid_extracted_value(career_intent_data):
+                update_parts.append("career_intent = %s")
+                update_params.append(career_intent_json)
+                print(f"[INFO] AI SUGGESTION: Filling empty career_intent field with extracted data")
+            elif not is_empty_json(current_career_intent):
+                print(f"[INFO] PRESERVING: Existing career_intent data - not overwriting with CV extraction")
+            
+            current_professional_summary = current_profile.get("professional_summary")
+            extracted_summary = profile_data.get("professional_summary", "")
+            if is_empty_text(current_professional_summary) and not is_empty_text(extracted_summary) and is_valid_extracted_value(extracted_summary):
+                update_parts.append("professional_summary = %s")
+                update_params.append(extracted_summary)
+                print(f"[INFO] AI SUGGESTION: Filling empty professional_summary field with extracted data")
+            elif not is_empty_text(current_professional_summary):
+                print(f"[INFO] PRESERVING: Existing professional_summary (manual edit) - not overwriting with CV extraction")
+            
+            current_skills = current_profile.get("skills_json")
+            if is_empty_json(current_skills) and has_non_empty_data(profile_data, 'skills') and is_valid_extracted_value(skills_data):
+                update_parts.append("skills_json = %s")
+                update_params.append(skills_json)
+                print(f"[INFO] AI SUGGESTION: Filling empty skills_json field with extracted data")
+            elif not is_empty_json(current_skills):
+                print(f"[INFO] PRESERVING: Existing skills_json data (manual edit) - not overwriting with CV extraction")
+            
+            current_experience = current_profile.get("experience_json")
+            if is_empty_json(current_experience) and has_non_empty_data(profile_data, 'experience') and is_valid_extracted_value(experience_data):
+                update_parts.append("experience_json = %s")
+                update_params.append(experience_json)
+                print(f"[INFO] AI SUGGESTION: Filling empty experience_json field with extracted data")
+            elif not is_empty_json(current_experience):
+                print(f"[INFO] PRESERVING: Existing experience_json data (manual edit) - not overwriting with CV extraction")
+            
+            current_education = current_profile.get("education_json")
+            if is_empty_json(current_education) and has_non_empty_data(profile_data, 'education') and is_valid_extracted_value(education_data):
+                update_parts.append("education_json = %s")
+                update_params.append(education_json)
+                print(f"[INFO] AI SUGGESTION: Filling empty education_json field with extracted data")
+            elif not is_empty_json(current_education):
+                print(f"[INFO] PRESERVING: Existing education_json data (manual edit) - not overwriting with CV extraction")
+            
+            current_projects = current_profile.get("projects_json")
+            if is_empty_json(current_projects) and has_non_empty_data(profile_data, 'projects') and is_valid_extracted_value(projects_data):
+                update_parts.append("projects_json = %s")
+                update_params.append(projects_json)
+                print(f"[INFO] AI SUGGESTION: Filling empty projects_json field with extracted data")
+            elif not is_empty_json(current_projects):
+                print(f"[INFO] PRESERVING: Existing projects_json data (manual edit) - not overwriting with CV extraction")
+            
+            current_achievements = current_profile.get("achievements_json")
+            if is_empty_json(current_achievements) and has_non_empty_data(profile_data, 'achievements') and is_valid_extracted_value(achievements_data):
+                update_parts.append("achievements_json = %s")
+                update_params.append(achievements_json)
+                print(f"[INFO] AI SUGGESTION: Filling empty achievements_json field with extracted data")
+            elif not is_empty_json(current_achievements):
+                print(f"[INFO] PRESERVING: Existing achievements_json data (manual edit) - not overwriting with CV extraction")
+            
+            # Legacy fields (only update if current is empty AND extracted is non-empty)
+            # Manual edits always take priority - existing data is never overwritten
+            current_name = current_profile.get("name")
+            extracted_name = identity.get("name", "")
+            if is_empty_text(current_name) and has_non_empty_identity_field(identity, 'name') and is_valid_extracted_value(extracted_name):
+                update_parts.append("name = %s")
+                update_params.append(extracted_name)
+                print(f"[INFO] AI SUGGESTION: Filling empty name field with extracted data")
+            elif not is_empty_text(current_name):
+                print(f"[INFO] PRESERVING: Existing name (manual edit) - not overwriting with CV extraction")
+            
+            current_email = current_profile.get("email")
+            extracted_email = identity.get("email", "")
+            if is_empty_text(current_email) and has_non_empty_identity_field(identity, 'email') and is_valid_extracted_value(extracted_email):
+                update_parts.append("email = %s")
+                update_params.append(extracted_email)
+                print(f"[INFO] AI SUGGESTION: Filling empty email field with extracted data")
+            elif not is_empty_text(current_email):
+                print(f"[INFO] PRESERVING: Existing email (manual edit) - not overwriting with CV extraction")
+            
+            current_phone = current_profile.get("phone")
+            extracted_phone = identity.get("phone", "")
+            if is_empty_text(current_phone) and has_non_empty_identity_field(identity, 'phone') and is_valid_extracted_value(extracted_phone):
+                update_parts.append("phone = %s")
+                update_params.append(extracted_phone)
+                print(f"[INFO] AI SUGGESTION: Filling empty phone field with extracted data")
+            elif not is_empty_text(current_phone):
+                print(f"[INFO] PRESERVING: Existing phone (manual edit) - not overwriting with CV extraction")
+            
+            current_bio = current_profile.get("bio")
+            if is_empty_text(current_bio) and not is_empty_text(extracted_summary) and is_valid_extracted_value(extracted_summary):
+                update_parts.append("bio = %s")
+                update_params.append(extracted_summary)
+                print(f"[INFO] AI SUGGESTION: Filling empty bio field with extracted data")
+            elif not is_empty_text(current_bio):
+                print(f"[INFO] PRESERVING: Existing bio (manual edit) - not overwriting with CV extraction")
+            
+            current_looking_for = current_profile.get("looking_for")
+            extracted_looking_for = ", ".join(career_intent.get("target_roles", [])) if career_intent.get("target_roles") and len(career_intent.get("target_roles", [])) > 0 else ""
+            if is_empty_text(current_looking_for) and not is_empty_text(extracted_looking_for) and is_valid_extracted_value(extracted_looking_for):
+                update_parts.append("looking_for = %s")
+                update_params.append(extracted_looking_for)
+                print(f"[INFO] AI SUGGESTION: Filling empty looking_for field with extracted data")
+            elif not is_empty_text(current_looking_for):
+                print(f"[INFO] PRESERVING: Existing looking_for (manual edit) - not overwriting with CV extraction")
+            
+            current_skills_legacy = current_profile.get("skills")
+            extracted_skills_legacy = ", ".join(profile_data.get("skills", {}).get("technical", [])) if profile_data.get("skills", {}).get("technical") and len(profile_data.get("skills", {}).get("technical", [])) > 0 else ""
+            if is_empty_text(current_skills_legacy) and not is_empty_text(extracted_skills_legacy) and is_valid_extracted_value(extracted_skills_legacy):
+                update_parts.append("skills = %s")
+                update_params.append(extracted_skills_legacy)
+                print(f"[INFO] AI SUGGESTION: Filling empty skills (legacy) field with extracted data")
+            elif not is_empty_text(current_skills_legacy):
+                print(f"[INFO] PRESERVING: Existing skills (legacy, manual edit) - not overwriting with CV extraction")
+            
+            if update_parts:
+                update_sql = "UPDATE profiles SET " + ", ".join(update_parts) + ", updated_at = NOW() WHERE user_id = %s"
+                update_params.append(user_id)
+                cursor.execute(update_sql, tuple(update_params))
+                conn.commit()
+                
+                # Count populated sections
+                populated_count = len(update_parts)
+                print(f"[INFO] AI SUGGESTION APPLIED: Filled {populated_count} empty field(s) with CV-extracted data")
+                print(f"[INFO] All existing data (manual edits) was preserved and protected")
+                return True, f"Profile enriched from CV! {populated_count} empty section(s) filled. Your existing data was preserved."
+            else:
+                print(f"[INFO] NO CHANGES: All fields already have data (manual or AI) - preserving all existing content")
+                print(f"[INFO] AI extraction acted as suggestion layer - no overwrites performed")
+                return True, "Your profile already has all information. CV data was used as suggestions only - no changes made to preserve your existing data."
+    
+    except mysql.connector.Error as e:
+        if conn is not None:
+            conn.rollback()
+        print(f"[ERROR] Database error during extraction: {e}")
+        return False, f"Database error: {str(e)}"
+    except Exception as e:
+        if conn is not None:
+            conn.rollback()
+        print(f"[ERROR] Unexpected error during extraction: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, f"Unexpected error: {str(e)}"
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+
+
+@app.route("/about-me/extract-cv", methods=["POST"])
+@login_required
+def extract_cv_from_stored():
+    """
+    Extract profile data from stored CV using AI.
+    This is a separate action - CV must be uploaded first.
+    """
+    user_id = session["user_id"]
+    
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get stored CV file
+        cursor.execute(
+            "SELECT cv_file_path, cv_file_name FROM profiles WHERE user_id = %s AND cv_file_path IS NOT NULL AND cv_file_path != ''",
+            (user_id,)
+        )
+        profile = cursor.fetchone()
+        
+        if not profile or not profile.get("cv_file_path"):
+            flash("No CV file found. Please upload a CV first.", "info")
+            return redirect(url_for("about_me"))
+        
+        file_path = os.path.join(UPLOAD_FOLDER, os.path.basename(profile["cv_file_path"]))
+        if not os.path.exists(file_path):
+            flash("CV file not found on server.", "danger")
+            return redirect(url_for("about_me"))
+        
+        # Use helper function to perform extraction
+        success, message = _perform_cv_extraction(user_id, file_path)
+        
+        if success:
+            flash(message, "success")
+        else:
+            flash(message, "danger" if "error" in message.lower() or "not available" in message.lower() else "info")
+        
+        return redirect(url_for("about_me"))
+    
+    except Exception as e:
+        if conn is not None:
+            conn.rollback()
+        print(f"[ERROR] Error during extraction: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f"Error extracting profile: {str(e)}", "danger")
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
+    
+    return redirect(url_for("about_me"))
 
 
 @app.route("/cv/extract", methods=["POST"])
